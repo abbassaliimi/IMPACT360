@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Doodle Shooter Math Quiz - Enemy Trigger Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #faf9f6;
+            box-shadow: 0 0 20px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+            background: rgba(250, 249, 246, 0.95);
+            color: #333;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin: 0 0 10px 0;
+            color: #111;
+            text-decoration: underline double #555;
+            font-weight: 900;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .cta-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            animation: blink 1.2s infinite;
+            color: #222;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .score-display {
+            font-size: 1.3rem;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        .banner {
+            color: #d9534f;
+            font-weight: bold;
+            font-size: 1.6rem;
+            margin: 15px 0;
+            border: 2px dashed #d9534f;
+            padding: 5px 15px;
+            transform: rotate(-3deg);
+        }
+
+        #hud {
+            position: absolute;
+            top: env(safe-area-inset-top, 10px);
+            left: 0;
+            width: 100%;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #score-hud {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #222;
+            background: rgba(250, 249, 246, 0.7);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px dashed #777;
+        }
+
+        #health-bar-container {
+            width: 120px;
+            height: 14px;
+            border: 2px solid #333;
+            background: #fff;
+            padding: 1px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background: #444;
+            transition: width 0.1s ease;
+        }
+
+        #stats-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 1.3rem;
+            font-family: inherit;
+            background: #fff;
+            border: 3px solid #333;
+            box-shadow: 4px 4px 0px #333;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+            outline: none;
+        }
+
+        .btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #333;
+        }
+
+        #mute-btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px #333;
+        }
+
+        #controls-panel {
+            position: absolute;
+            bottom: env(safe-area-inset-bottom, 15px);
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 5;
+        }
+
+        .ctrl-btn {
+            width: 85px;
+            height: 85px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 3px solid #333;
+            border-radius: 50%;
+            font-size: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 4px 4px 0px #333;
+            touch-action: none;
+        }
+
+        #quiz-screen {
+            background: rgba(250, 249, 246, 0.98);
+            border: 4px solid #333;
+            max-width: 95%;
+            max-height: 85%;
+            margin: auto;
+            border-radius: 12px;
+            box-shadow: 8px 8px 0px #333;
+            padding: 25px 15px;
+        }
+
+        #quiz-question {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #111;
+            line-height: 1.4;
+            max-width: 500px;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .quiz-opt-btn {
+            padding: 14px 20px;
+            font-size: 1.2rem;
+            font-family: inherit;
+            background: #fff;
+            border: 2px solid #333;
+            box-shadow: 3px 3px 0px #333;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .quiz-opt-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div id="stats-left">
+            <div id="score-hud">00000</div>
+            <div>HP: <div id="health-bar-container"><div id="health-bar"></div></div></div>
+        </div>
+        <button id="mute-btn">🔊</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="controls-panel" class="hidden">
+        <div id="btn-left" class="ctrl-btn">◀</div>
+        <div id="btn-right" class="ctrl-btn">▶</div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="title-screen" class="screen-overlay">
+        <h1>shooter</h1>
+        <p class="subtitle">math quiz - enemy blast edition</p>
+        <p class="score-display" id="title-high-score">High Score: 0</p>
+        <div style="height: 40px;"></div>
+        <p class="cta-text">TEKAN DI SINI UNTUK MULA</p>
+        <p style="font-size: 0.85rem; color: #777; margin-top:20px;">*Tembak musuh untuk dapatkan soalan kuiz!</p>
+    </div>
+
+    <!-- SCREEN DIALOG KUIZ MATEMATIK -->
+    <div id="quiz-screen" class="screen-overlay hidden">
+        <p style="color: #4b86b4; font-weight: bold; font-size: 1.1rem; margin: 0 0 10px 0;">🧮 SOALAN MATEMATIK MUSUH 🧮</p>
+        <div id="quiz-question">12 x 4 = ?</div>
+        <div class="quiz-options">
+            <button class="quiz-opt-btn" id="opt0">44</button>
+            <button class="quiz-opt-btn" id="opt1">48</button>
+            <button class="quiz-opt-btn" id="opt2">52</button>
+            <button class="quiz-opt-btn" id="opt3">46</button>
+        </div>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="gameover-screen" class="screen-overlay hidden">
+        <h1>TAMAT</h1>
+        <div id="new-high-banner" class="banner hidden">REKOD BARU!</div>
+        <p class="score-display" id="final-score">Skor Akhir: 0</p>
+        <p class="score-display" id="gameover-high-score">High Score: 0</p>
+        <button id="restart-btn" class="btn">MAIN SEMULA</button>
+    </div>
+</div>
+
+<script>
+const CONFIG = {
+    playerSpeed: 350,
+    playerMaxHp: 100,
+    fireRate: 0.22,
+    bulletSpeed: 550,
+    baseEnemySpeed: 100,
+    spawnInterval: 1.8,
+    notebookLineGap: 28,
+};
+
+function generateMathQuestion() {
+    const ops = ['+', '-', '*'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let num1, num2, questionText, correctAns;
+
+    if (op === '+') {
+        num1 = Math.floor(Math.random() * 80) + 10;
+        num2 = Math.floor(Math.random() * 80) + 10;
+        questionText = `${num1} + ${num2} = ?`;
+        correctAns = num1 + num2;
+    } else if (op === '-') {
+        num1 = Math.floor(Math.random() * 90) + 10;
+        num2 = Math.floor(Math.random() * num1);
+        questionText = `${num1} - ${num2} = ?`;
+        correctAns = num1 - num2;
+    } else if (op === '*') {
+        num1 = Math.floor(Math.random() * 10) + 2;
+        num2 = Math.floor(Math.random() * 9) + 2;
+        questionText = `${num1} × ${num2} = ?`;
+        correctAns = num1 * num2;
+    }
+
+    let options = new Set();
+    options.add(correctAns);
+    while(options.size < 4) {
+        let wrong = correctAns + (Math.floor(Math.random() * 15) - 7);
+        if (wrong !== correctAns && wrong >= 0) {
+            options.add(wrong);
+        }
+    }
+
+    return {
+        q: questionText,
+        a: Array.from(options).sort(() => Math.random() - 0.5),
+        correct: correctAns
+    };
+}
+
+class AudioController {
+    constructor() { 
+        this.ctx = null; 
+        this.isMuted = false; 
+    }
+    
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+    
+    toggleMute() { 
+        this.isMuted = !this.isMuted; 
+        this.init();
+        return this.isMuted; 
+    }
+    
+    playLaser() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(450, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.1);
+    }
+    
+    playQuizCorrect() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const playTone = (freq, start, duration) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine'; 
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.15, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(start); osc.stop(start + duration);
+        };
+        playTone(523.25, now, 0.08);       
+        playTone(659.25, now + 0.06, 0.08); 
+        playTone(783.99, now + 0.12, 0.15); 
+    }
+
+    playQuizWrong() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(130, now);
+        osc.frequency.linearRampToValueAtTime(70, now + 0.25);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.25);
+    }
+    
+    playExplosion() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.linearRampToValueAtTime(30, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.25);
+    }
+}
+
+const sound = new AudioController();
+
+class Player {
+    constructor(gameWidth, gameHeight) {
+        this.gameWidth = gameWidth; this.gameHeight = gameHeight;
+        this.width = 44; this.height = 44;
+        this.x = gameWidth / 2; this.y = gameHeight - 160; 
+        this.hp = CONFIG.playerMaxHp;
+        this.weaponLevel = 1;
+        this.shieldActive = false; this.shieldTime = 0;
+        this.history = [];
+    }
+    update(dt, moveDirection) {
+        if (moveDirection !== 0) this.x += moveDirection * CONFIG.playerSpeed * dt;
+        const halfW = this.width / 2;
+        if (this.x - halfW < 10) this.x = 10 + halfW;
+        if (this.x + halfW > this.gameWidth - 10) this.x = this.gameWidth - 10 - halfW;
+        if (this.shieldActive) {
+            this.shieldTime -= dt;
+            if (this.shieldTime <= 0) this.shieldActive = false;
+        }
+        this.history.push({ x: this.x, y: this.y });
+        if (this.history.length > 6) this.history.shift();
+    }
+    draw(ctx) {
+        ctx.strokeStyle = 'rgba(80, 80, 80, 0.18)'; ctx.lineWidth = 2;
+        for (let i = 0; i < this.history.length - 1; i++) {
+            this.drawStarfighterShape(ctx, this.history[i].x, this.history[i].y, true);
+        }
+        if (this.shieldActive) {
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.arc(this.x, this.y - 4, this.width * 0.85, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 3;
+        this.drawStarfighterShape(ctx, this.x, this.y, false);
+    }
+    drawStarfighterShape(ctx, cx, cy, isTrail) {
+        ctx.beginPath(); ctx.moveTo(cx, cy - 24); ctx.lineTo(cx - 10, cy - 6);
+        ctx.lineTo(cx - 22, cy + 10); ctx.lineTo(cx - 8, cy + 8); ctx.lineTo(cx, cy + 16);
+        ctx.lineTo(cx + 8, cy + 8); ctx.lineTo(cx + 22, cy + 10); ctx.lineTo(cx + 10, cy - 6);
+        ctx.closePath();
+        if (isTrail) { ctx.stroke(); } else { ctx.fillStyle = '#faf9f6'; ctx.fill(); ctx.stroke(); }
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle = 0) { this.x = x; this.y = y; this.speed = CONFIG.bulletSpeed; this.angle = angle; this.radius = 4; this.active = true; }
+    update(dt) { this.x += Math.sin(this.angle) * this.speed * dt; this.y -= Math.cos(this.angle) * this.speed * dt; }
+    draw(ctx) { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); }
+}
+
+class Enemy {
+    constructor(x, y, type, speedMultiplier = 1) {
+        this.x = x; this.y = y; this.type = type;
+        this.width = type === 'boss' ? 70 : 36; this.height = type === 'boss' ? 60 : 32;
+        this.hp = type === 'boss' ? 6 : 1;
+        this.speed = (type === 'boss' ? CONFIG.baseEnemySpeed * 0.6 : CONFIG.baseEnemySpeed * (1 + Math.random() * 0.4)) * speedMultiplier;
+        this.shootTimer = Math.random() * 2; this.active = true;
+        this.wobbleSpeed = 2 + Math.random() * 3; this.wobbleRange = 20 + Math.random() * 30; this.spawnX = x;
+    }
+    update(dt, playerY) {
+        this.y += this.speed * dt;
+        this.x = this.spawnX + Math.sin(this.y * 0.02 * this.wobbleSpeed) * this.wobbleRange;
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && this.y < playerY - 100) {
+            this.shootTimer = this.type === 'boss' ? (1.5 + Math.random() * 1.5) : (3.0 + Math.random() * 4.0);
+            return true;
+        }
+        return false;
+    }
+    draw(ctx) {
+        ctx.strokeStyle = this.type === 'boss' ? '#d9534f' : '#333'; ctx.lineWidth = this.type === 'boss' ? 3 : 2; ctx.fillStyle = '#faf9f6';
+        const hw = this.width / 2; const hh = this.height / 2;
+        ctx.beginPath();
+        if (this.type === 'boss') {
+            ctx.moveTo(this.x, this.y + hh); ctx.lineTo(this.x - hw, this.y); ctx.lineTo(this.x - hw * 0.6, this.y - hh);
+            ctx.lineTo(this.x, this.y - hh * 0.3); ctx.lineTo(this.x + hw * 0.6, this.y - hh); ctx.lineTo(this.x + hw, this.y);
+        } else {
+            ctx.moveTo(this.x, this.y + hh); ctx.lineTo(this.x - hw, this.y - hh * 0.3); ctx.lineTo(this.x - hw * 0.5, this.y - hh);
+            ctx.lineTo(this.x + hw * 0.5, this.y - hh); ctx.lineTo(this.x + hw, this.y - hh * 0.3);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+}
+
+class EnemyBullet {
+    constructor(x, y, angle = 0) { this.x = x; this.y = y; this.speed = 250; this.angle = angle; this.radius = 5; this.active = true; }
+    update(dt) { this.x += Math.sin(this.angle) * this.speed * dt; this.y += Math.cos(this.angle) * this.speed * dt; }
+    draw(ctx) {
+        ctx.strokeStyle = '#c9302c'; ctx.lineWidth = 1.5; ctx.fillStyle = '#faf9f6';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+}
+
+class VisualJuice {
+    constructor(x, y, type, text = '') {
+        this.x = x; this.y = y; this.type = type; this.text = text;
+        this.vx = (Math.random() - 0.5) * 160; this.vy = type === 'popup' ? -60 : (Math.random() - 0.5) * 160;
+        this.life = 1.0; this.decay = type === 'popup' ? 1.2 : 2.5;
+    }
+    update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= this.decay * dt; }
+    draw(ctx) {
+        if (this.type === 'popup') {
+            ctx.fillStyle = `rgba(16, 16, 16, ${this.life})`; ctx.font = 'bold 16px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText(this.text, this.x, this.y);
+        } else {
+            ctx.strokeStyle = `rgba(50, 50, 50, ${this.life})`; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.rect(this.x, this.y, 4 + Math.random() * 4, 4 + Math.random() * 4); ctx.stroke();
+        }
+    }
+}
+
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = 0; this.height = 0;
+        this.score = 0;
+        this.highScore = parseInt(localStorage.getItem('doodle_math_high_score')) || 0;
+        this.isPlaying = false;
+        this.isQuizActive = false;
+        this.currentCorrectAnswer = null;
+        this.enemyTypeKilled = 'basic'; 
+
+        this.player = null;
+        this.bullets = []; this.enemies = []; this.enemyBullets = []; this.juice = [];
+        this.fireTimer = 0; this.spawnTimer = 0; this.waveCount = 0; this.lastTime = 0; this.screenShake = 0; this.moveDirection = 0;
+
+        this.initUI();
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.mainLoop(t));
+    }
+
+    initUI() {
+        document.getElementById('title-high-score').innerText = `High Score: ${this.highScore}`;
+
+        const startAction = (e) => { 
+            e.preventDefault(); 
+            sound.init(); 
+            this.startGame(); 
+        };
+        document.getElementById('title-screen').addEventListener('touchstart', startAction);
+        document.getElementById('title-screen').addEventListener('click', startAction);
+        document.getElementById('restart-btn').addEventListener('click', () => this.startGame());
+
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); this.moveDirection = -1; });
+        btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); this.moveDirection = 0; });
+        btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); this.moveDirection = 1; });
+        btnRight.addEventListener('touchend', (e) => { e.preventDefault(); this.moveDirection = 0; });
+
+        btnLeft.addEventListener('mousedown', () => this.moveDirection = -1);
+        btnLeft.addEventListener('mouseup', () => this.moveDirection = 0);
+        btnRight.addEventListener('mousedown', () => this.moveDirection = 1);
+        btnRight.addEventListener('mouseup', () => this.moveDirection = 0);
+
+        document.getElementById('mute-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            sound.init();
+            const muted = sound.toggleMute();
+            document.getElementById('mute-btn').innerText = muted ? '🔇' : '🔊';
+        });
+
+        for (let i = 0; i < 4; i++) {
+            document.getElementById(`opt${i}`).addEventListener('click', (e) => this.checkQuizAnswer(Number(e.target.dataset.value)));
+        }
+    }
+
+    resizeCanvas() {
+        const container = document.getElementById('game-container');
+        this.width = container.clientWidth; this.height = container.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.width * dpr; this.canvas.height = this.height * dpr;
+        this.ctx.scale(dpr, dpr);
+        if (this.player) { this.player.gameWidth = this.width; this.player.gameHeight = this.height; }
+    }
+
+    startGame() {
+        this.score = 0; this.waveCount = 0; this.fireTimer = 0; this.spawnTimer = 0; this.screenShake = 0; this.moveDirection = 0;
+        this.isQuizActive = false;
+
+        this.player = new Player(this.width, this.height);
+        this.bullets = []; this.enemies = []; this.enemyBullets = []; this.juice = [];
+        this.updateHUD();
+
+        document.getElementById('title-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('new-high-banner').classList.add('hidden');
+        document.getElementById('controls-panel').classList.remove('hidden');
+
+        this.isPlaying = true;
+    }
+
+    // --- DIKEMASKINI: DIPICU SETIAP KALI MUSUH MATI ---
+    triggerMathQuiz(enemyType) {
+        this.isQuizActive = true;
+        this.enemyTypeKilled = enemyType;
+        document.getElementById('controls-panel').classList.add('hidden');
+        
+        const mathData = generateMathQuestion();
+        this.currentCorrectAnswer = mathData.correct;
+
+        document.getElementById('quiz-question').innerText = mathData.q;
+
+        for (let i = 0; i < 4; i++) {
+            const btn = document.getElementById(`opt${i}`);
+            btn.innerText = mathData.a[i];
+            btn.dataset.value = mathData.a[i];
+        }
+
+        document.getElementById('quiz-screen').classList.remove('hidden');
+    }
+
+    checkQuizAnswer(selectedAnswer) {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('controls-panel').classList.remove('hidden');
+        this.isQuizActive = false;
+
+        if (selectedAnswer === this.currentCorrectAnswer) {
+            sound.playQuizCorrect();
+            
+            // Hadiah jika betul: Upgrade senjata secara automatik!
+            this.player.weaponLevel = Math.min(3, this.player.weaponLevel + 1);
+            
+            let pts = this.enemyTypeKilled === 'boss' ? 150 : 50;
+            this.score += pts;
+            this.spawnPopup(this.player.x, this.player.y - 30, `+${pts} MANTAP!`);
+            this.spawnPopup(this.player.x, this.player.y, "SENJATA UPGRADE!");
+        } else {
+            sound.playQuizWrong();
+            this.processPlayerDamage(20);
+            this.spawnPopup(this.player.x, this.player.y, `SALAH! Jwpn: ${this.currentCorrectAnswer}`);
+        }
+        
+        this.updateHUD();
+    }
+
+    triggerGameOver() {
+        this.isPlaying = false;
+        sound.playExplosion();
+        document.getElementById('controls-panel').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = `Skor Akhir: ${this.score}`;
+
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('doodle_math_high_score', this.highScore);
+            document.getElementById('new-high-banner').classList.remove('hidden');
+        }
+        document.getElementById('gameover-high-score').innerText = `High Score: ${this.highScore}`;
+        document.getElementById('title-high-score').innerText = `High Score: ${this.highScore}`;
+    }
+
+    updateHUD() {
+        document.getElementById('score-hud').innerText = String(this.score).padStart(5, '0');
+        const hpPercent = Math.max(0, (this.player.hp / CONFIG.playerMaxHp) * 100);
+        document.getElementById('health-bar').style.width = `${hpPercent}%`;
+    }
+
+    spawnJuiceBurst(x, y, count = 8) { for (let i = 0; i < count; i++) this.juice.push(new VisualJuice(x, y, 'particle')); }
+    spawnPopup(x, y, text) { this.juice.push(new VisualJuice(x, y, 'popup', text)); }
+
+    mainLoop(timestamp) {
+        let dt = (timestamp - this.lastTime) / 1000;
+        if (dt > 0.1) dt = 0.1;
+        this.lastTime = timestamp;
+
+        if (this.isPlaying && !this.isQuizActive) {
+            this.updateGame(dt);
+        }
+        this.renderGame();
+
+        requestAnimationFrame((t) => this.mainLoop(t));
+    }
+
+    updateGame(dt) {
+        if (this.screenShake > 0) this.screenShake -= dt * 10;
+        this.player.update(dt, this.moveDirection);
+
+        this.fireTimer += dt;
+        if (this.fireTimer >= CONFIG.fireRate) {
+            this.fireTimer = 0; 
+            sound.playLaser();
+            if (this.player.weaponLevel === 1) {
+                this.bullets.push(new Bullet(this.player.x, this.player.y - 25, 0));
+            } else if (this.player.weaponLevel === 2) {
+                this.bullets.push(new Bullet(this.player.x - 10, this.player.y - 25, 0));
+                this.bullets.push(new Bullet(this.player.x + 10, this.player.y - 25, 0));
+            } else {
+                this.bullets.push(new Bullet(this.player.x, this.player.y - 25, 0));
+                this.bullets.push(new Bullet(this.player.x - 12, this.player.y - 25, -0.2));
+                this.bullets.push(new Bullet(this.player.x + 12, this.player.y - 25, 0.2));
+            }
+        }
+
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+            this.waveCount++;
+            this.spawnTimer = CONFIG.spawnInterval + Math.max(0.6, 2 - (this.waveCount * 0.1));
+            const speedScale = 1 + (this.waveCount * 0.07);
+            
+            if (this.waveCount % 6 === 0) {
+                this.enemies.push(new Enemy(this.width / 2, -50, 'boss', speedScale));
+                this.spawnPopup(this.width / 2, 80, "AMARAN BOSS MATEMATIK!");
+            } else {
+                const columnCount = Math.min(5, 3 + Math.floor(this.waveCount / 4));
+                const spacing = (this.width - 60) / (columnCount - 1);
+                for (let i = 0; i < columnCount; i++) {
+                    const rx = 30 + (i * spacing) + (Math.random() - 0.5) * 15;
+                    const ry = -40 - (Math.random() * 30);
+                    this.enemies.push(new Enemy(rx, ry, 'basic', speedScale));
+                }
+            }
+        }
+
+        this.bullets.forEach(b => b.update(dt));
+        this.enemyBullets.forEach(eb => eb.update(dt));
+        this.juice.forEach(j => j.update(dt));
+        this.enemies.forEach(e => {
+            if (e.update(dt, this.player.y)) {
+                if (e.type === 'boss') {
+                    this.enemyBullets.push(new EnemyBullet(e.x, e.y + 30, -0.25));
+                    this.enemyBullets.push(new EnemyBullet(e.x, e.y + 30, 0));
+                    this.enemyBullets.push(new EnemyBullet(e.x, e.y + 30, 0.25));
+                } else {
+                    this.enemyBullets.push(new EnemyBullet(e.x, e.y + 15, 0));
+                }
+            }
+        });
+
+        this.bullets = this.bullets.filter(b => b.active && b.y > -20);
+        this.enemyBullets = this.enemyBullets.filter(eb => eb.active && eb.y < this.height + 20);
+        this.juice = this.juice.filter(j => j.life > 0);
+        
+        this.enemies = this.enemies.filter(e => {
+            if (e.y > this.height + 40) {
+                if (e.type !== 'boss') {
+                    this.player.hp -= 10; this.screenShake = 3; this.updateHUD();
+                    if (this.player.hp <= 0) this.triggerGameOver();
+                }
+                return false;
+            }
+            return e.active;
+        });
+
+        this.handleCollisions();
+    }
+
+    handleCollisions() {
+        for (let b of this.bullets) {
+            for (let e of this.enemies) {
+                if (Math.hypot(b.x - e.x, b.y - e.y) < (e.width / 2 + b.radius)) {
+                    b.active = false; e.hp--; this.spawnJuiceBurst(b.x, b.y, 3);
+                    
+                    if (e.hp <= 0) {
+                        e.active = false; 
+                        sound.playExplosion(); 
+                        this.spawnJuiceBurst(e.x, e.y, e.type === 'boss' ? 24 : 10);
+                        
+                        // PICU KUIZ MATEMATIK SECARA AUTOMATIK BILA MUSUH MELETUP
+                        this.triggerMathQuiz(e.type);
+                    }
+                    break;
+                }
+            }
+        }
+
+        for (let eb of this.enemyBullets) {
+            if (Math.hypot(eb.x - this.player.x, eb.y - this.player.y) < (this.player.width / 2.5 + eb.radius)) {
+                eb.active = false; this.processPlayerDamage(15); break;
+            }
+        }
+
+        for (let e of this.enemies) {
+            if (Math.hypot(e.x - this.player.x, e.y - this.player.y) < (this.player.width / 2.2 + e.width / 2.2)) {
+                e.active = false; this.spawnJuiceBurst(e.x, e.y, 12);
+                this.processPlayerDamage(e.type === 'boss' ? 40 : 25);
+            }
+        }
+    }
+
+    processPlayerDamage(amount) {
+        if (this.player.shieldActive) {
+            this.player.shieldActive = false;
+            this.spawnPopup(this.player.x, this.player.y - 30, "PERISAI PECAH!");
+            return;
+        }
+        this.player.hp -= amount; this.screenShake = 4.5; this.spawnJuiceBurst(this.player.x, this.player.y, 8); this.updateHUD();
+        if (this.player.hp <= 0) this.triggerGameOver();
+    }
+
+    renderGame() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.ctx.save();
+        if (this.screenShake > 0.1) {
+            this.ctx.translate((Math.random() - 0.5) * this.screenShake * 3, (Math.random() - 0.5) * this.screenShake * 3);
+        }
+
+        this.ctx.strokeStyle = 'rgba(0, 100, 250, 0.08)'; this.ctx.lineWidth = 1;
+        for (let y = CONFIG.notebookLineGap; y < this.height; y += CONFIG.notebookLineGap) {
+            this.ctx.beginPath(); this.ctx.moveTo(0, y); this.ctx.lineTo(this.width, y); this.ctx.stroke();
+        }
+        this.ctx.strokeStyle = 'rgba(250, 50, 50, 0.12)'; this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath(); this.ctx.moveTo(45, 0); this.ctx.lineTo(45, this.height); this.ctx.stroke();
+
+        this.enemies.forEach(e => e.draw(this.ctx));
+        this.bullets.forEach(b => b.draw(this.ctx));
+        this.enemyBullets.forEach(eb => eb.draw(this.ctx));
+        if (this.player) this.player.draw(this.ctx);
+        this.juice.forEach(j => j.draw(this.ctx));
+
+        this.ctx.restore();
+    }
+}
+
+window.addEventListener('load', () => { new Game(); });
+</script>
+</body>
+</html>
