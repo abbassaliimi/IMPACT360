@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ular Makan Nombor</title>
+    <style>
+        :root {
+            --yellow: #FFDE00;
+            --cyan: #00E5FF;
+            --magenta: #FF007F;
+            --dark: #111116;
+            --white: #FFFFFF;
+            --bright-bg: #FFE543; 
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bright-bg);
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            touch-action: none;
+        }
+
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background-image: radial-gradient(rgba(255, 0, 127, 0.18) 18%, transparent 19%);
+            background-size: 10px 10px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px) 20px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+        }
+
+        .score-board {
+            background: var(--cyan);
+            padding: 6px 14px;
+            border: 4px solid var(--dark);
+            box-shadow: 4px 4px 0px var(--dark);
+            transform: rotate(-1deg);
+            font-size: 20px;
+            color: var(--dark);
+            text-transform: uppercase;
+        }
+
+        .equation-board {
+            background: var(--white);
+            padding: 6px 20px;
+            border: 4px solid var(--dark);
+            box-shadow: 4px 4px 0px var(--magenta);
+            transform: rotate(1deg);
+            font-size: 26px;
+            color: var(--dark);
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        .mute-btn {
+            background: var(--magenta);
+            color: var(--white);
+            border: 4px solid var(--dark);
+            box-shadow: 4px 4px 0px var(--dark);
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 229, 67, 0.95); 
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .pop-title {
+            font-size: 52px;
+            color: var(--white);
+            text-shadow: 
+                -3px -3px 0 var(--dark),  
+                 3px -3px 0 var(--dark),
+                -3px  3px 0 var(--dark),
+                 3px  3px 0 var(--dark),
+                 6px  6px 0 var(--magenta),
+                 10px 10px 0 var(--cyan);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            line-height: 0.95;
+            animation: pulse 1.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95) rotate(-3deg); }
+            100% { transform: scale(1.03) rotate(-1deg); }
+        }
+
+        .pop-card {
+            background: var(--white);
+            border: 5px solid var(--dark);
+            box-shadow: 8px 8px 0 var(--dark);
+            padding: 24px;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .instruction {
+            font-size: 15px;
+            color: #222;
+            margin-top: 15px;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+
+        .cta-text {
+            font-size: 20px;
+            color: var(--magenta);
+            margin-top: 25px;
+            animation: blink 0.8s infinite alternate steps(2);
+        }
+
+        @keyframes blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+        .pop-btn {
+            background: var(--magenta);
+            color: var(--white);
+            font-family: 'Impact', sans-serif;
+            font-size: 26px;
+            padding: 10px 28px;
+            border: 4px solid var(--dark);
+            box-shadow: 5px 5px 0 var(--cyan);
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="hud">
+            <div class="score-board" id="hudScore">SCORE: 0</div>
+            <div class="equation-board" id="hudEquation">? + ? = ?</div>
+            <div class="mute-btn interactive" id="muteBtn" onclick="game.toggleMute(event)">🔊</div>
+        </div>
+    </div>
+
+    <div class="screen interactive" id="titleScreen" onclick="game.startRound()">
+        <h1 class="pop-title">MATH SNAKE<br>QUEST</h1>
+        <div class="pop-card">
+            <p class="instruction">
+                Solve the equation at the top!<br><br>
+                Eat the chicken with the <b>CORRECT ANSWER</b>.<br>
+                Avoid wrong answers, cows, and your own tail!
+            </p>
+            <div class="cta-text">TAP ANYWHERE TO START</div>
+        </div>
+    </div>
+
+    <div class="screen hidden" id="gameOverScreen">
+        <h1 class="pop-title" style="color: var(--magenta); text-shadow: -3px -3px 0 #111, 3px -3px 0 #111, -3px 3px 0 #111, 3px 3px 0 #111, 6px 6px 0 var(--yellow);">WRONG ANSWER!</h1>
+        <div class="pop-card" style="box-shadow: 8px 8px 0 var(--magenta);">
+            <div class="instruction" id="correctAnswerReveal" style="font-size: 20px; color: #111; margin-bottom: 15px;"></div>
+            <div style="font-size:24px; color: var(--dark)">FINAL SCORE: <span id="finalScore" style="color:var(--magenta)">0</span></div>
+            <button class="pop-btn interactive" onclick="game.restartRound()">TRY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        class AudioController {
+            constructor() { this.ctx = null; this.isMuted = false; }
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') this.ctx.resume(); }
+            playMove() {
+                if (this.isMuted || !this.ctx) return; this.init();
+                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.08);
+            }
+            playCollect() {
+                if (this.isMuted || !this.ctx) return; this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); const noteTime = now + (idx * 0.06);
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, noteTime); gain.gain.setValueAtTime(0.15, noteTime);
+                    gain.gain.linearRampToValueAtTime(0.01, noteTime + 0.12); osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(noteTime); osc.stop(noteTime + 0.12);
+                });
+            }
+            playGameOver() {
+                if (this.isMuted || !this.ctx) return; this.init();
+                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(50, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color; this.radius = Math.random() * 5 + 3;
+                const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 120 + 80;
+                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed; this.alpha = 1; this.life = 0.4;
+            }
+            update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.alpha -= dt / this.life; }
+            draw(ctx) {
+                if (this.alpha <= 0) return; ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color;
+                ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke(); ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) { this.x = x; this.y = y; this.text = text; this.color = color; this.vy = -50; this.alpha = 1; this.life = 0.7; }
+            update(dt) { this.y += this.vy * dt; this.alpha -= dt / this.life; }
+            draw(ctx) {
+                if (this.alpha <= 0) return; ctx.save(); ctx.globalAlpha = this.alpha; ctx.font = 'bold 24px Impact';
+                ctx.fillStyle = this.color; ctx.strokeStyle = '#111'; ctx.lineWidth = 3; ctx.textAlign = 'center';
+                ctx.strokeText(this.text, this.x, this.y); ctx.fillText(this.text, this.x, this.y); ctx.restore();
+            }
+        }
+
+        class GameEngine {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.audio = new AudioController();
+                
+                this.gridSize = 0; this.cols = 14; this.rows = 20; this.offsetX = 0; this.offsetY = 0;
+                this.isPlaying = false; this.score = 0;
+                
+                this.snake = []; this.dir = { x: 0, y: -1 }; this.nextDir = { x: 0, y: -1 };
+                this.moveTimer = 0; this.moveInterval = 0.32;
+                
+                // Educational state parameters
+                this.currentQuestion = { text: "", answer: 0 };
+                this.items = []; // Array containing multiple answer entities
+                
+                this.particles = []; this.floatingTexts = []; this.screenShake = 0; this.pulseTime = 0;
+                this.touchStart = { x: 0, y: 0 }; this.minSwipeDistance = 30;
+
+                this.initResize();
+                this.setupControls();
+            }
+
+            initResize() {
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.resizeCanvas();
+            }
+
+            resizeCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.width = window.innerWidth * dpr;
+                this.canvas.height = window.innerHeight * dpr;
+                this.ctx.scale(dpr, dpr);
+                
+                this.gridSize = Math.floor(Math.min(window.innerWidth / this.cols, (window.innerHeight - 80) / this.rows));
+                this.offsetX = Math.floor((window.innerWidth - (this.gridSize * this.cols)) / 2);
+                this.offsetY = Math.floor((window.innerHeight + 40 - (this.gridSize * this.rows)) / 2);
+            }
+
+            setupControls() {
+                window.addEventListener('keydown', (e) => {
+                    if(!this.isPlaying) return;
+                    let tDir = null;
+                    switch(e.key) {
+                        case 'ArrowUp':    case 'w': case 'W': tDir = { x: 0, y: -1 }; break;
+                        case 'ArrowDown':  case 's': case 'S': tDir = { x: 0, y: 1 };  break;
+                        case 'ArrowLeft':  case 'a': case 'A': tDir = { x: -1, y: 0 }; break;
+                        case 'ArrowRight': case 'd': case 'D': tDir = { x: 1, y: 0 };  break;
+                    }
+                    if(tDir) this.changeDirection(tDir);
+                });
+                window.addEventListener('touchstart', (e) => { this.touchStart.x = e.touches[0].clientX; this.touchStart.y = e.touches[0].clientY; });
+                window.addEventListener('touchmove', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+                window.addEventListener('touchend', (e) => {
+                    if(!this.isPlaying) return;
+                    const dx = e.changedTouches[0].clientX - this.touchStart.x;
+                    const dy = e.changedTouches[0].clientY - this.touchStart.y;
+                    let tDir = null;
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) > this.minSwipeDistance) {
+                        tDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 }) : (dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 });
+                    }
+                    if(tDir) this.changeDirection(tDir);
+                });
+            }
+
+            changeDirection(newDir) {
+                if ((newDir.x === -this.dir.x && newDir.x !== 0) || (newDir.y === -this.dir.y && newDir.y !== 0)) return;
+                this.nextDir = newDir;
+                this.audio.playMove();
+            }
+
+            toggleMute(e) {
+                e.stopPropagation(); this.audio.init(); this.audio.isMuted = !this.audio.isMuted;
+                document.getElementById('muteBtn').innerText = this.audio.isMuted ? '🔇' : '🔊';
+            }
+
+            generateMathProblem() {
+                let type = 'add';
+                if (this.score >= 30) type = 'sub';
+                if (this.score >= 70) type = Math.random() > 0.5 ? 'mult' : 'sub';
+
+                let num1, num2, text, answer;
+                if (type === 'add') {
+                    num1 = Math.floor(Math.random() * 10) + 1;
+                    num2 = Math.floor(Math.random() * 10) + 1;
+                    text = `${num1} + ${num2} = ?`;
+                    answer = num1 + num2;
+                } else if (type === 'sub') {
+                    num1 = Math.floor(Math.random() * 12) + 6;
+                    num2 = Math.floor(Math.random() * num1);
+                    text = `${num1} - ${num2} = ?`;
+                    answer = num1 - num2;
+                } else {
+                    num1 = Math.floor(Math.random() * 6) + 2;
+                    num2 = Math.floor(Math.random() * 5) + 2;
+                    text = `${num1} × ${num2} = ?`;
+                    answer = num1 * num2;
+                }
+                this.currentQuestion = { text, answer };
+                document.getElementById('hudEquation').innerText = text;
+            }
+
+            startRound() {
+                this.audio.init();
+                document.getElementById('titleScreen').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                this.score = 0;
+                document.getElementById('hudScore').innerText = `SCORE: ${this.score}`;
+                this.dir = { x: 0, y: -1 }; this.nextDir = { x: 0, y: -1 };
+                
+                const startX = Math.floor(this.cols / 2);
+                const startY = Math.floor(this.rows / 2);
+                this.snake = [{ x: startX, y: startY }, { x: startX, y: startY + 1 }, { x: startX, y: startY + 2 }];
+                
+                this.particles = []; this.floatingTexts = [];
+                this.generateMathProblem();
+                this.spawnEducationalItems();
+                this.isPlaying = true;
+                
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            restartRound() {
+                this.startRound();
+            }
+
+            spawnEducationalItems() {
+                this.items = [];
+                const ans = this.currentQuestion.answer;
+                
+                // Create unique solution options
+                let values = [ans];
+                while(values.length < 3) {
+                    let offset = (Math.floor(Math.random() * 5) + 1) * (Math.random() > 0.5 ? 1 : -1);
+                    let wrongAns = ans + offset;
+                    if(wrongAns >= 0 && !values.includes(wrongAns)) values.push(wrongAns);
+                }
+
+                // Shuffle elements
+                values.sort(() => Math.random() - 0.5);
+
+                // Find open safe coordinate nodes
+                values.forEach((val, index) => {
+                    let rx, ry, valid = false;
+                    while(!valid) {
+                        rx = Math.floor(Math.random() * this.cols);
+                        ry = Math.floor(Math.random() * this.rows);
+                        valid = !this.snake.some(s => s.x === rx && s.y === ry) && 
+                                !this.items.some(i => i.x === rx && i.y === ry);
+                    }
+                    
+                    // Style: Index 0/1 are chickens, index 2 is a cow decoy
+                    this.items.push({
+                        x: rx, y: ry,
+                        value: val,
+                        isCorrect: val === ans,
+                        type: index === 2 ? 'cow' : 'chicken'
+                    });
+                });
+            }
+
+            triggerGameOver(wrongSelection = false) {
+                this.isPlaying = false;
+                this.audio.playGameOver();
+                this.screenShake = 0.4;
+                
+                const reveal = document.getElementById('correctAnswerReveal');
+                if (wrongSelection) {
+                    reveal.innerHTML = `Oops! The correct equation was:<br><b style="color:var(--magenta); font-size:24px;">${this.currentQuestion.text.replace('?', this.currentQuestion.answer)}</b>`;
+                } else {
+                    reveal.innerText = "Crash! You bumped into a structural block or tail segment.";
+                }
+
+                document.getElementById('finalScore').innerText = this.score;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+            }
+
+            loop(timestamp) {
+                let dt = (timestamp - this.lastTime) / 1000;
+                if (dt > 0.1) dt = 0.1;
+                this.lastTime = timestamp;
+
+                this.update(dt);
+                this.draw();
+                if (this.isPlaying || this.particles.length > 0) {
+                    requestAnimationFrame((t) => this.loop(t));
+                }
+            }
+
+            update(dt) {
+                this.pulseTime += dt * 8;
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update(dt);
+                    if (this.particles[i].alpha <= 0) this.particles.splice(i, 1);
+                }
+                for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+                    this.floatingTexts[i].update(dt);
+                    if (this.floatingTexts[i].alpha <= 0) this.floatingTexts.splice(i, 1);
+                }
+                if (this.screenShake > 0) this.screenShake -= dt * 2;
+
+                if (!this.isPlaying) return;
+
+                this.moveTimer += dt;
+                if (this.moveTimer >= this.moveInterval) {
+                    this.moveTimer = 0;
+                    this.stepSnake();
+                }
+            }
+
+            stepSnake() {
+                this.dir = { ...this.nextDir };
+                const head = this.snake[0];
+                const nextHead = { x: head.x + this.dir.x, y: head.y + this.dir.y };
+
+                // Screen boundaries wraparound mapping
+                if (nextHead.x < 0) nextHead.x = this.cols - 1;
+                if (nextHead.x >= this.cols) nextHead.x = 0;
+                if (nextHead.y < 0) nextHead.y = this.rows - 1;
+                if (nextHead.y >= this.rows) nextHead.y = 0;
+
+                // Self collision checking
+                if (this.snake.some(s => s.x === nextHead.x && s.y === nextHead.y)) {
+                    this.triggerGameOver(false);
+                    return;
+                }
+
+                // Check intersection with equation answers
+                const hitItemIndex = this.items.findIndex(i => i.x === nextHead.x && i.y === nextHead.y);
+
+                if (hitItemIndex !== -1) {
+                    const item = this.items[hitItemIndex];
+                    const px = item.x * this.gridSize + this.gridSize/2 + this.offsetX;
+                    const py = item.y * this.gridSize + this.gridSize/2 + this.offsetY;
+
+                    if (item.isCorrect) {
+                        this.score += 10;
+                        this.audio.playCollect();
+                        document.getElementById('hudScore').innerText = `SCORE: ${this.score}`;
+                        
+                        this.floatingTexts.push(new FloatingText(px, py, "CORRECT! +10", '#FF007F'));
+                        for(let k=0; k<14; k++) this.particles.push(new Particle(px, py, '#00E5FF'));
+
+                        this.snake.unshift(nextHead); // Grow the snake
+                        this.generateMathProblem();
+                        this.spawnEducationalItems();
+                    } else {
+                        this.triggerGameOver(true); // Hit a wrong math answer
+                        return;
+                    }
+                } else {
+                    this.snake.unshift(nextHead);
+                    this.snake.pop();
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.save();
+                if (this.screenShake > 0) {
+                    this.ctx.translate((Math.random() - 0.5) * this.screenShake * 30, (Math.random() - 0.5) * this.screenShake * 30);
+                }
+
+                this.drawGridBackground();
+                this.drawItems();
+                this.drawSnake();
+
+                this.particles.forEach(p => p.draw(this.ctx));
+                this.floatingTexts.forEach(ft => ft.draw(this.ctx));
+                this.ctx.restore();
+            }
+
+            drawGridBackground() {
+                const w = this.cols * this.gridSize;
+                const h = this.rows * this.gridSize;
+                this.ctx.fillStyle = '#FFF275';
+                this.ctx.fillRect(this.offsetX, this.offsetY, w, h);
+
+                this.ctx.strokeStyle = 'rgba(255, 0, 127, 0.12)';
+                this.ctx.lineWidth = 1.5;
+                for (let c = 0; c <= this.cols; c++) {
+                    this.ctx.beginPath(); this.ctx.moveTo(this.offsetX + c * this.gridSize, this.offsetY);
+                    this.ctx.lineTo(this.offsetX + c * this.gridSize, this.offsetY + h); this.ctx.stroke();
+                }
+                for (let r = 0; r <= this.rows; r++) {
+                    this.ctx.beginPath(); this.ctx.moveTo(this.offsetX, this.offsetY + r * this.gridSize);
+                    this.ctx.lineTo(this.offsetX + w, this.offsetY + r * this.gridSize); this.ctx.stroke();
+                }
+                this.ctx.strokeStyle = '#111'; this.ctx.lineWidth = 6;
+                this.ctx.strokeRect(this.offsetX, this.offsetY, w, h);
+            }
+
+            drawSnake() {
+                this.snake.forEach((segment, i) => {
+                    const x = this.offsetX + segment.x * this.gridSize + this.gridSize/2;
+                    const y = this.offsetY + segment.y * this.gridSize + this.gridSize/2;
+                    const size = this.gridSize - 4;
+
+                    this.ctx.save();
+                    this.ctx.translate(x, y);
+
+                    if (i === 0) { // Head
+                        this.ctx.fillStyle = '#00E5FF'; this.ctx.strokeStyle = '#111'; this.ctx.lineWidth = 4;
+                        this.ctx.fillRect(-size/2, -size/2, size, size); this.ctx.strokeRect(-size/2, -size/2, size, size);
+                        this.ctx.fillStyle = '#111';
+                        this.ctx.fillRect(-size/3, -size/3, size/5, size/5);
+                        this.ctx.fillRect(size/6, -size/3, size/5, size/5);
+                    } else { // Tail
+                        this.ctx.fillStyle = `hsl(${(280 + i * 12) % 360}, 100%, 55%)`;
+                        this.ctx.strokeStyle = '#111'; this.ctx.lineWidth = 3;
+                        this.ctx.beginPath(); this.ctx.arc(0, 0, size/2 * 0.85, 0, Math.PI * 2);
+                        this.ctx.fill(); this.ctx.stroke();
+                    }
+                    this.ctx.restore();
+                });
+            }
+
+            drawItems() {
+                const pulse = 1 + Math.sin(this.pulseTime) * 0.08;
+                this.items.forEach(item => {
+                    const ix = this.offsetX + item.x * this.gridSize + this.gridSize/2;
+                    const iy = this.offsetY + item.y * this.gridSize + this.gridSize/2;
+
+                    this.ctx.save();
+                    this.ctx.translate(ix, iy);
+                    this.ctx.scale(pulse, pulse);
+
+                    // Background Pop Card for numbers
+                    let grad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.gridSize * 0.7);
+                    grad.addColorStop(0, item.type === 'chicken' ? '#FF007F' : '#00E5FF');
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    this.ctx.fillStyle = grad;
+                    this.ctx.beginPath(); this.ctx.arc(0, 0, this.gridSize * 0.7, 0, Math.PI*2); this.ctx.fill();
+
+                    // Main border box containment
+                    this.ctx.fillStyle = '#FFFFFF'; this.ctx.strokeStyle = '#111'; this.ctx.lineWidth = 3;
+                    this.ctx.fillRect(-this.gridSize*0.4, -this.gridSize*0.4, this.gridSize*0.8, this.gridSize*0.8);
+                    this.ctx.strokeRect(-this.gridSize*0.4, -this.gridSize*0.4, this.gridSize*0.8, this.gridSize*0.8);
+
+                    // Draw Creature Graphic Asset
+                    this.ctx.font = `${Math.floor(this.gridSize * 0.9)}px Arial`;
+                    this.ctx.textAlign = 'center'; this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(item.type === 'chicken' ? '🐓' : '🐄', 0, -4);
+
+                    // Render Math Choice Banner Overlay Label
+                    this.ctx.font = 'bold 16px Arial Black';
+                    this.ctx.fillStyle = '#111';
+                    this.ctx.strokeStyle = '#FFF'; this.ctx.lineWidth = 3;
+                    
+                    const labelY = -this.gridSize * 0.55;
+                    this.ctx.strokeText(item.value, 0, labelY);
+                    this.ctx.fillText(item.value, 0, labelY);
+
+                    this.ctx.restore();
+                });
+            }
+        }
+
+        let game;
+        window.addEventListener('load', () => { game = new GameEngine(); });
+    </script>
+</body>
+</html>
