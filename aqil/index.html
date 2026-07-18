@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Avoid The Incoming Hungry Snake</title>
+    <style>
+        :root {
+            --bg-sage: #f9ebe6; /* Changed to a soft nature pink */
+            --cream: #fbf9f1;
+            --pink: #f7d6c8;
+            --dark-brown: #5d4e46;
+            --accent-orange: #f29c6b;
+            --correct-green: #8cb883;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #2b2622;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #menu-screen {
+            background-color: rgba(249, 235, 230, 0.95); /* Tinted menu matching the new pink */
+            transition: opacity 0.3s ease;
+        }
+
+        #game-over-screen {
+            background-color: rgba(93, 78, 70, 0.85);
+            display: none;
+        }
+
+        .title {
+            font-size: 3.2rem;
+            color: var(--dark-brown);
+            margin: 0 0 10px 0;
+            font-weight: 800;
+            text-shadow: 2px 2px 0px var(--pink);
+            letter-spacing: -1px;
+        }
+
+        .go-title {
+            font-size: 3.5rem;
+            color: var(--pink);
+            margin: 0 0 10px 0;
+            font-weight: 800;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--dark-brown);
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        .go-subtitle {
+            font-size: 1.5rem;
+            color: var(--cream);
+            margin-bottom: 20px;
+        }
+
+        .high-score-tag {
+            font-size: 1.1rem;
+            background: var(--pink);
+            color: var(--dark-brown);
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .banner {
+            font-size: 1.6rem;
+            color: var(--accent-orange);
+            font-weight: bold;
+            animation: pulse 1s infinite alternate;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 0px #000;
+        }
+
+        /* Volume Controls Layout */
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(93, 78, 70, 0.1);
+            padding: 10px 20px;
+            border-radius: 25px;
+            margin-bottom: 30px;
+            pointer-events: auto;
+        }
+
+        .volume-container label {
+            color: var(--dark-brown);
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 150px;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--cream);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--dark-brown);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .cta-btn {
+            background-color: var(--dark-brown);
+            color: var(--cream);
+            font-size: 1.3rem;
+            font-weight: bold;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0px #382e2a;
+            transition: all 0.1s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cta-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0px #382e2a;
+        }
+
+        /* Top HUD Layer */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .hud-element {
+            pointer-events: auto;
+            font-weight: bold;
+            font-size: 1.3rem;
+            color: var(--dark-brown);
+            background: rgba(255, 255, 255, 0.75);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        #math-equation-display {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--dark-brown);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 25px;
+            border: 3px solid var(--accent-orange);
+            border-radius: 25px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        #mute-btn {
+            cursor: pointer;
+            font-size: 1.5rem;
+            border: none;
+            background: rgba(255, 255, 255, 0.75);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #lives-display {
+            letter-spacing: 2px;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.95); }
+            to { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Heads Up Display -->
+    <div id="hud">
+        <div id="lives-display" class="hud-element">🐰 ❤️❤️❤️</div>
+        <div id="math-equation-display" class="hud-element">? + ? = ?</div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div id="score-display" class="hud-element" style="font-size: 1.5rem; font-weight: 800;">0 pts</div>
+            <button id="mute-btn">🔊</button>
+        </div>
+    </div>
+
+    <!-- Main Menu Screen -->
+    <div id="menu-screen" class="overlay">
+        <h1 class="title">Dodge to the Right Answer!</h1>
+        <div class="subtitle">Solve the math equation and run into the snake holding the right answer!</div>
+        
+        <!-- Volume Setting Adjustment Module -->
+        <div class="volume-container">
+            <label for="menu-volume-slider">🔊 Volume:</label>
+            <input type="range" id="menu-volume-slider" class="volume-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+
+        <div id="menu-highscore" class="high-score-tag">High Score: 0 pts</div>
+        <button class="cta-btn" id="start-btn">Tap to Start Game</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay">
+        <h1 class="go-title">Game Over</h1>
+        <div id="new-high-score-banner" class="banner" style="display: none;">✨ NEW HIGH SCORE! ✨</div>
+        <div id="final-score" class="go-subtitle">Score: 0 pts</div>
+        <div id="go-highscore" class="high-score-tag" style="background: var(--dark-brown); color: var(--cream);">High Score: 0 pts</div>
+        <button class="cta-btn" id="restart-btn" style="background-color: var(--pink); color: var(--dark-brown); box-shadow: 0 6px 0px #cda799;">Play Again</button>
+    </div>
+
+    <!-- Gameplay Canvas -->
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+// ==========================================
+// GAME CONFIGURATION & TWEAKING PARAMETERS
+// ==========================================
+const CONFIG = {
+    virtualWidth: 960,       
+    virtualHeight: 540,      
+    laneCount: 3,            
+    baseSpeed: 220,          
+    speedStepAmount: 8,    
+    speedStepWindow: 5.0,    
+    maxSpeed: 600,           
+    waveSpawnInterval: 3.5, 
+    playerTrailLength: 8,     
+    maxLives: 3,
+    absoluteMaxLives: 5
+};
+
+// ==========================================
+// PROCEDURAL AUDIO SYSTEM (Web Audio API)
+// ==========================================
+class AudioController {
+    constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.globalVolume = 0.5; 
+        this.ambientNodes = [];
+        this.ambientInterval = null;
+        this.droneGainNode = null; 
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    setVolume(value) {
+        this.globalVolume = parseFloat(value);
+        if (this.droneGainNode && this.ctx) {
+            let baseVol = 0.18 * this.globalVolume; 
+            this.droneGainNode.gain.setValueAtTime(this.isMuted ? 0 : baseVol, this.ctx.currentTime);
+        }
+    }
+
+    startAmbientTheme() {
+        this.init();
+        if (this.ambientInterval) return; 
+        
+        try {
+            let baseOsc = this.ctx.createOscillator();
+            this.droneGainNode = this.ctx.createGain();
+            
+            baseOsc.type = 'sine';
+            baseOsc.frequency.setValueAtTime(110, this.ctx.currentTime); 
+            
+            let baseVol = 0.18 * this.globalVolume;
+            this.droneGainNode.gain.setValueAtTime(this.isMuted ? 0 : baseVol, this.ctx.currentTime);
+            
+            baseOsc.connect(this.droneGainNode);
+            this.droneGainNode.connect(this.ctx.destination);
+            baseOsc.start();
+            
+            this.ambientNodes.push(baseOsc, this.droneGainNode);
+            
+            const chimeNotes = [440.00, 493.88, 554.37, 659.25, 739.99]; 
+            
+            const triggerChime = () => {
+                if (this.isMuted || this.ctx.state === 'suspended') return;
+                
+                let note = chimeNotes[Math.floor(Math.random() * chimeNotes.length)];
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(note, this.ctx.currentTime);
+                
+                let chimePeak = 0.225 * this.globalVolume;
+                
+                gain.gain.setValueAtTime(0.0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(chimePeak, this.ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 4.0);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 4.1);
+            };
+            
+            this.ambientInterval = setInterval(() => {
+                if(Math.random() > 0.3) triggerChime();
+            }, 2000);
+            
+        } catch(e) {
+            console.log("Audio failed to auto-initialize safely yet.");
+        }
+    }
+
+    stopAmbientTheme() {
+        if (this.ambientInterval) {
+            clearInterval(this.ambientInterval);
+            this.ambientInterval = null;
+        }
+        this.ambientNodes.forEach(node => {
+            try { node.stop(); } catch(e){}
+            try { node.disconnect(); } catch(e){}
+        });
+        this.ambientNodes = [];
+        this.droneGainNode = null;
+    }
+
+    playMove() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        
+        let osc = this.ctx.createOscillator();
+        let gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1400, this.ctx.currentTime + 0.07);
+        
+        gain.gain.setValueAtTime(0.15 * this.globalVolume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.07);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.07);
+    }
+
+    playCollect() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        
+        let t = this.ctx.currentTime;
+        const notes = [880.00, 987.77, 1174.66, 1318.51, 1567.98];
+        
+        notes.forEach((freq, idx) => {
+            let osc = this.ctx.createOscillator();
+            let gain = this.ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, t + (idx * 0.04));
+            
+            let peakVolume = 0.12 * this.globalVolume;
+            
+            gain.gain.setValueAtTime(peakVolume, t + (idx * 0.04));
+            gain.gain.linearRampToValueAtTime(0.001, t + (idx * 0.04) + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(t + (idx * 0.04));
+            osc.stop(t + (idx * 0.04) + 0.2);
+        });
+    }
+
+    playHit() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        
+        let osc = this.ctx.createOscillator();
+        let gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        
+        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(150, this.ctx.currentTime + 0.2);
+        
+        gain.gain.setValueAtTime(0.25 * this.globalVolume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+    }
+}
+
+const audio = new AudioController();
+
+// ==========================================
+// BACKGROUND NATURE DECORATION
+// ==========================================
+class NatureLeaf {
+    constructor() {
+        this.reset();
+        // Scatter leaves across the entire initial canvas width randomly
+        this.x = Math.random() * (CONFIG.virtualWidth + 100);
+    }
+
+    reset() {
+        this.x = CONFIG.virtualWidth + Math.random() * 100;
+        this.y = Math.random() * CONFIG.virtualHeight;
+        this.size = 8 + Math.random() * 14;
+        this.speed = 30 + Math.random() * 50;
+        this.swaySpeed = 1 + Math.random() * 2;
+        this.swayRange = 15 + Math.random() * 20;
+        this.angle = Math.random() * Math.PI;
+        this.rotateSpeed = (Math.random() - 0.5) * 2;
+        this.time = Math.random() * 100;
+        
+        // Dynamic earth/forest nature tones compatible with pink backgrounds
+        const leavesColors = ['rgba(140, 184, 131, 0.25)', 'rgba(164, 212, 180, 0.2)', 'rgba(212, 222, 208, 0.3)', 'rgba(242, 156, 107, 0.15)'];
+        this.color = leavesColors[Math.floor(Math.random() * leavesColors.length)];
+    }
+
+    update(dt) {
+        this.x -= this.speed * dt;
+        this.time += dt;
+        this.y += Math.sin(this.time * this.swaySpeed) * this.swayRange * dt;
+        this.angle += this.rotateSpeed * dt;
+
+        if (this.x < -40) {
+            this.reset();
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = this.color;
+        
+        // Draw standard stylized organic leaf shape
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
+// ==========================================
+// GAME ENTITIES
+// ==========================================
+
+class Player {
+    constructor() {
+        this.lane = 1; 
+        this.targetY = this.getLaneY(this.lane);
+        this.x = 150; 
+        this.y = this.targetY;
+        this.radius = 28;
+        this.trail = [];
+        this.invulnFrames = 0;
+    }
+
+    getLaneY(laneIndex) {
+        const laneHeight = CONFIG.virtualHeight / CONFIG.laneCount;
+        return (laneIndex * laneHeight) + (laneHeight / 2);
+    }
+
+    move(dir) {
+        if (dir === 'UP' && this.lane > 0) {
+            this.lane--;
+            audio.playMove();
+        } else if (dir === 'DOWN' && this.lane < CONFIG.laneCount - 1) {
+            this.lane++;
+            audio.playMove();
+        }
+        this.targetY = this.getLaneY(this.lane);
+    }
+
+    update(dt) {
+        this.y += (this.targetY - this.y) * 22 * dt;
+
+        this.trail.push({ x: this.x, y: this.y });
+        if (this.trail.length > CONFIG.playerTrailLength) {
+            this.trail.shift();
+        }
+
+        if (this.invulnFrames > 0) this.invulnFrames -= dt;
+    }
+
+    draw(ctx) {
+        this.trail.forEach((pos, idx) => {
+            let alpha = (idx / this.trail.length) * 0.25;
+            ctx.fillStyle = `rgba(247, 214, 200, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, this.radius * 0.9, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        if (this.invulnFrames > 0 && Math.floor(this.invulnFrames * 15) % 2 === 0) return;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Fluffy Puff Tail
+        ctx.fillStyle = '#fbf9f1';
+        ctx.beginPath();
+        ctx.arc(-26, 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f7d6c8';
+        ctx.beginPath();
+        ctx.arc(-26, 8, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ears
+        ctx.fillStyle = '#fbf9f1'; 
+        ctx.beginPath();
+        ctx.ellipse(-8, -25, 6, 16, -Math.PI/12, 0, Math.PI*2);
+        ctx.ellipse(4, -25, 6, 16, Math.PI/12, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#f7d6c8'; 
+        ctx.beginPath();
+        ctx.ellipse(-8, -24, 3, 10, -Math.PI/12, 0, Math.PI*2);
+        ctx.ellipse(4, -24, 3, 10, Math.PI/12, 0, Math.PI*2);
+        ctx.fill();
+
+        // Main Body
+        ctx.fillStyle = '#fbf9f1';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cheeks
+        ctx.fillStyle = 'rgba(247, 214, 200, 0.7)';
+        ctx.beginPath();
+        ctx.arc(-14, 2, 6, 0, Math.PI*2);
+        ctx.arc(14, 2, 6, 0, Math.PI*2);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#5d4e46';
+        ctx.beginPath();
+        ctx.arc(-8, -4, 3.5, 0, Math.PI * 2);
+        ctx.arc(8, -4, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Nose
+        ctx.fillStyle = '#f29c6b';
+        ctx.beginPath();
+        ctx.moveTo(0, -1);
+        ctx.lineTo(-3, -3);
+        ctx.lineTo(3, -3);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+class SnakeObstacle {
+    constructor(lane, speed, answerValue, isCorrectAnswer) {
+        this.lane = lane;
+        const laneHeight = CONFIG.virtualHeight / CONFIG.laneCount;
+        this.y = (this.lane * laneHeight) + (laneHeight / 2);
+        this.x = CONFIG.virtualWidth + 100;
+        this.speed = speed; 
+        this.width = 90;
+        this.height = 36;
+        this.radius = 24; 
+        this.waveTime = Math.random() * 100; 
+
+        this.answerValue = answerValue;
+        this.isCorrectAnswer = isCorrectAnswer;
+        this.hasBeenEvaluated = false;
+    }
+
+    update(dt) {
+        this.x -= this.speed * dt;
+        this.waveTime += dt * (this.speed * 0.045); 
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Snake Body
+        ctx.lineWidth = 15;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#a4d4b4'; 
+
+        ctx.beginPath();
+        for (let i = -35; i <= 35; i += 10) {
+            let segmentWave = Math.sin((i * 0.08) + this.waveTime) * 11;
+            if (i == -35) {
+                ctx.moveTo(i, segmentWave);
+            } else {
+                ctx.lineTo(i, segmentWave);
+            }
+        }
+        ctx.stroke();
+
+        let headWave = Math.sin((-35 * 0.08) + this.waveTime) * 11;
+        ctx.fillStyle = '#a4d4b4'; 
+        ctx.beginPath();
+        ctx.arc(-38, headWave, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eye Details
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-42, headWave - 2, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5d4e46'; 
+        ctx.beginPath();
+        ctx.arc(-43, headWave - 2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Math Sign Board
+        ctx.save();
+        ctx.translate(-38, headWave - 32);
+        
+        ctx.fillStyle = '#5d4e46';
+        ctx.beginPath();
+        ctx.roundRect(-22, -14, 44, 28, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#fbf9f1';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fbf9f1';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.answerValue, 0, 0);
+        ctx.restore();
+
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 300;
+        this.vy = (Math.random() - 0.5) * 300;
+        this.radius = 3 + Math.random() * 6;
+        this.color = color;
+        this.alpha = 1.0;
+        this.life = 0.4 + Math.random() * 0.4; 
+        this.maxLife = this.life;
+    }
+
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+        this.alpha = Math.max(0, this.life / this.maxLife);
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.vy = -80;
+        this.alpha = 1.0;
+        this.life = 0.9;
+    }
+    update(dt) {
+        this.y += this.vy * dt;
+        this.life -= dt;
+        this.alpha = Math.max(0, this.life / 0.9);
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 26px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+// ==========================================
+// CENTRAL GAME ENGINE
+// ==========================================
+class Game {
+    constructor() {
+        document.body.addEventListener('click', (e) => {
+            if(e.target.closest('.volume-container')) return;
+            audio.init();
+            audio.startAmbientTheme();
+        }, { once: true });
+        
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        this.state = 'MENU'; 
+        this.score = 0;
+        this.highScore = parseInt(localStorage.getItem('math_snake_highScore')) || 0;
+        this.lives = CONFIG.maxLives;
+        this.correctStreak = 0; 
+        this.currentSpeed = CONFIG.baseSpeed;
+        
+        this.player = null;
+        this.obstacles = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        
+        // Setup background decorative leaves system
+        this.natureLeaves = [];
+        for (let i = 0; i < 15; i++) {
+            this.natureLeaves.push(new NatureLeaf());
+        }
+        
+        this.spawnTimer = 0;
+        this.speedTimer = 0; 
+        this.screenShake = 0;
+        this.lastTime = 0;
+
+        this.currentEquation = { text: '', answer: 0 };
+        this.touchStartIdx = { x: 0, y: 0 };
+
+        this.setupResizing();
+        this.attachControlListeners();
+        this.updateUIDisplays();
+    }
+
+    generateNewEquation() {
+        const types = ['+', '-', '*'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        let num1, num2, answer, text;
+
+        if (type === '+') {
+            num1 = Math.floor(Math.random() * 14) + 2;
+            num2 = Math.floor(Math.random() * 14) + 2;
+            answer = num1 + num2;
+            text = `${num1} + ${num2} = ?`;
+        } else if (type === '-') {
+            num1 = Math.floor(Math.random() * 15) + 10;
+            num2 = Math.floor(Math.random() * 9) + 1;
+            answer = num1 - num2;
+            text = `${num1} - ${num2} = ?`;
+        } else {
+            num1 = Math.floor(Math.random() * 8) + 2;
+            num2 = Math.floor(Math.random() * 9) + 1;
+            answer = num1 * num2;
+            text = `${num1} × ${num2} = ?`;
+        }
+
+        this.currentEquation = { text, answer };
+        document.getElementById('math-equation-display').innerText = text;
+    }
+
+    setupResizing() {
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+    }
+
+    resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        const targetRatio = CONFIG.virtualWidth / CONFIG.virtualHeight;
+        let width = windowWidth;
+        let height = windowWidth / targetRatio;
+        
+        if (height > windowHeight) {
+            height = windowHeight;
+            width = windowHeight * targetRatio;
+        }
+
+        this.canvas.style.width = `${width}px`;
+        this.canvas.style.height = `${height}px`;
+        
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+        
+        this.scaleX = (width * dpr) / CONFIG.virtualWidth;
+        this.scaleY = (height * dpr) / CONFIG.virtualHeight;
+    }
+
+    startRound() {
+        audio.init();
+        audio.startAmbientTheme();
+        this.state = 'PLAYING';
+        this.score = 0;
+        this.lives = CONFIG.maxLives;
+        this.correctStreak = 0; 
+        this.currentSpeed = CONFIG.baseSpeed;
+        this.speedTimer = 0;
+        this.player = new Player();
+        this.obstacles = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.spawnTimer = CONFIG.waveSpawnInterval; 
+        
+        this.generateNewEquation();
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('game-over-screen').style.display = 'none';
+        this.updateUIDisplays();
+    }
+
+    triggerGameOver() {
+        this.state = 'GAMEOVER';
+        let isNewHigh = false;
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('math_snake_highScore', this.highScore);
+            isNewHigh = true;
+        }
+        
+        document.getElementById('new-high-score-banner').style.display = isNewHigh ? 'block' : 'none';
+        document.getElementById('final-score').innerText = `Score: ${this.score} pts`;
+        document.getElementById('go-highscore').innerText = `High Score: ${this.highScore} pts`;
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }
+
+    spawnSnakeWave() {
+        const lanes = [0, 1, 2];
+        const correctLane = Math.floor(Math.random() * CONFIG.laneCount);
+        const correctAnswer = this.currentEquation.answer;
+
+        lanes.forEach(lane => {
+            let answerValue;
+            if (lane === correctLane) {
+                answerValue = correctAnswer;
+            } else {
+                const offset = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 4) + 1);
+                answerValue = correctAnswer + offset;
+                if (answerValue < 0) answerValue = Math.floor(Math.random() * 10);
+            }
+
+            this.obstacles.push(
+                new SnakeObstacle(lane, this.currentSpeed, answerValue, lane === correctLane)
+            );
+        });
+    }
+
+    registerCorrectAnswer(hitX, hitY) {
+        this.score += 10;
+        this.correctStreak += 1;
+        audio.playCollect();
+        
+        for (let i = 0; i < 20; i++) {
+            this.particles.push(new Particle(hitX, hitY, '#8cb883'));
+        }
+        
+        this.floatingTexts.push(new FloatingText(hitX, hitY - 30, 'Correct! +10', '#8cb883'));
+
+        if (this.correctStreak >= 5) {
+            this.correctStreak = 0;
+            if (this.lives < CONFIG.absoluteMaxLives) {
+                this.lives++;
+                this.floatingTexts.push(new FloatingText(hitX, hitY - 70, '✨ 1UP! +1 Life ✨', '#f29c6b'));
+            } else {
+                this.floatingTexts.push(new FloatingText(hitX, hitY - 70, 'Max Health!', '#f7d6c8'));
+            }
+        }
+        
+        this.generateNewEquation();
+        this.updateUIDisplays();
+    }
+
+    registerIncorrectAnswer(hitX, hitY) {
+        this.lives--;
+        this.correctStreak = 0; 
+        this.screenShake = 0.4; 
+        audio.playHit();
+        this.player.invulnFrames = 1.0; 
+        
+        for (let i = 0; i < 15; i++) {
+            this.particles.push(new Particle(hitX, hitY, '#f29c6b'));
+        }
+        
+        this.floatingTexts.push(new FloatingText(hitX, hitY - 30, 'Wrong! Skip!', '#f29c6b'));
+        this.generateNewEquation();
+        this.updateUIDisplays();
+
+        if (this.lives <= 0) {
+            this.triggerGameOver();
+        }
+    }
+
+    updateUIDisplays() {
+        document.getElementById('score-display').innerText = `${this.score} pts`;
+        document.getElementById('lives-display').innerText = `🐰 ` + `❤️`.repeat(Math.max(0, this.lives));
+        document.getElementById('menu-highscore').innerText = `High Score: ${this.highScore} pts`;
+        document.getElementById('go-highscore').innerText = `High Score: ${this.highScore} pts`;
+    }
+
+    attachControlListeners() {
+        const handleActionInput = (dir) => {
+            if (this.state === 'PLAYING' && this.player) {
+                this.player.move(dir);
+            }
+        };
+
+        window.addEventListener('touchstart', (e) => {
+            if(e.target.closest('.volume-container') || e.target.closest('#mute-btn')) return;
+            if (e.touches.length > 0) {
+                this.touchStartIdx.x = e.touches[0].clientX;
+                this.touchStartIdx.y = e.touches[0].clientY;
+            }
+            if (this.state === 'MENU') this.startRound();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if(e.target.closest('.volume-container')) return;
+            if(e.cancelable) e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            if(e.target.closest('.volume-container')) return;
+            if (e.changedTouches.length === 0) return;
+            
+            const dx = e.changedTouches[0].clientX - this.touchStartIdx.x;
+            const dy = e.changedTouches[0].clientY - this.touchStartIdx.y;
+            
+            const threshold = 35; 
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > threshold) {
+                handleActionInput(dy > 0 ? 'DOWN' : 'UP');
+            }
+        }, { passive: false });
+
+        window.addEventListener('keydown', (e) => {
+            if (this.state === 'MENU' && e.code === 'Space') this.startRound();
+            
+            switch(e.key) {
+                case 'ArrowUp':    case 'w': handleActionInput('UP'); break;
+                case 'ArrowDown':  case 's': handleActionInput('DOWN'); break;
+            }
+        });
+
+        document.getElementById('start-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.startRound();
+        });
+        document.getElementById('restart-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.startRound();
+        });
+
+        const volumeSlider = document.getElementById('menu-volume-slider');
+        volumeSlider.addEventListener('input', (e) => {
+            audio.setVolume(e.target.value);
+        });
+        volumeSlider.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+        });
+
+        const muteBtn = document.getElementById('mute-btn');
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.isMuted = !audio.isMuted;
+            muteBtn.innerText = audio.isMuted ? '🔇' : '🔊';
+            
+            volumeSlider.value = audio.isMuted ? 0 : audio.globalVolume;
+
+            if (audio.isMuted) {
+                audio.stopAmbientTheme();
+            } else {
+                audio.startAmbientTheme();
+            }
+        });
+    }
+
+    run(timestamp) {
+        if (!this.lastTime) this.lastTime = timestamp;
+        let dt = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        if (dt > 0.1) dt = 0.1;
+
+        this.update(dt);
+        this.render();
+
+        window.requestAnimationFrame((t) => this.run(t));
+    }
+
+    update(dt) {
+        // Continuous organic leaf movement updating even on menu screens
+        this.natureLeaves.forEach(leaf => leaf.update(dt));
+
+        if (this.state === 'PLAYING') {
+            this.speedTimer += dt;
+            if (this.speedTimer >= CONFIG.speedStepWindow) {
+                this.speedTimer -= CONFIG.speedStepWindow;
+                this.currentSpeed = Math.min(CONFIG.maxSpeed, this.currentSpeed + CONFIG.speedStepAmount);
+            }
+
+            this.spawnTimer += dt;
+            if (this.spawnTimer >= CONFIG.waveSpawnInterval) {
+                this.spawnSnakeWave();
+                this.spawnTimer = 0;
+            }
+
+            if (this.player) this.player.update(dt);
+
+            let questionShouldSkipOrClear = false;
+            for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                let obs = this.obstacles[i];
+                obs.update(dt);
+                
+                if (this.player && !obs.hasBeenEvaluated && this.player.invulnFrames <= 0) {
+                    let distX = Math.abs(this.player.x - obs.x);
+                    let distY = Math.abs(this.player.y - obs.y);
+                    
+                    if (distX <= (obs.width/2 + this.player.radius) && distY <= (obs.height/2 + this.player.radius)) {
+                        let distanceCheck = Math.hypot(this.player.x - obs.x, this.player.y - obs.y);
+                        if (distanceCheck < (this.player.radius + obs.radius)) {
+                            
+                            obs.hasBeenEvaluated = true;
+                            questionShouldSkipOrClear = true;
+                            
+                            if (obs.isCorrectAnswer) {
+                                this.registerCorrectAnswer(obs.x, obs.y);
+                            } else {
+                                this.registerIncorrectAnswer(obs.x, obs.y);
+                            }
+                            break; 
+                        }
+                    }
+                }
+
+                if (obs.x < -120) this.obstacles.splice(i, 1);
+            }
+
+            if (questionShouldSkipOrClear) {
+                this.obstacles = [];
+                this.spawnTimer = CONFIG.waveSpawnInterval - 0.6;
+            }
+        }
+
+        if (this.screenShake > 0) {
+            this.screenShake -= dt * 2.5;
+            if (this.screenShake < 0) this.screenShake = 0;
+        }
+
+        for (let i = 0; i < this.particles.length; i++) {
+            this.particles[i].update(dt);
+        }
+        this.particles = this.particles.filter(p => p.life > 0);
+
+        for (let i = 0; i < this.floatingTexts.length; i++) {
+            this.floatingTexts[i].update(dt);
+        }
+        this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
+    }
+
+    render() {
+        this.ctx.save();
+        this.ctx.scale(this.scaleX, this.scaleY);
+
+        if (this.screenShake > 0) {
+            const shakeMag = this.screenShake * 14;
+            const dx = (Math.random() - 0.5) * shakeMag;
+            const dy = (Math.random() - 0.5) * shakeMag;
+            this.ctx.translate(dx, dy);
+        }
+
+        // New Nature-tinted Pastel Pink canvas fill
+        this.ctx.fillStyle = '#f9ebe6';
+        this.ctx.fillRect(0, 0, CONFIG.virtualWidth, CONFIG.virtualHeight);
+
+        // Draw nature leaves first so they stay in the background
+        this.natureLeaves.forEach(leaf => leaf.draw(this.ctx));
+
+        this.ctx.strokeStyle = 'rgba(93, 78, 70, 0.08)'; // Softer dividers to fit the pastel nature tone
+        this.ctx.lineWidth = 4;
+        const laneHeight = CONFIG.virtualHeight / CONFIG.laneCount;
+        for (let i = 1; i < CONFIG.laneCount; i++) {
+            this.ctx.beginPath();
+            this.ctx.setLineDash([15, 15]);
+            this.ctx.moveTo(0, i * laneHeight);
+            this.ctx.lineTo(CONFIG.virtualWidth, i * laneHeight);
+            this.ctx.stroke();
+        }
+        this.ctx.setLineDash([]); 
+
+        this.obstacles.forEach(obs => obs.draw(this.ctx));
+        if (this.player) this.player.draw(this.ctx);
+        this.particles.forEach(p => p.draw(this.ctx));
+        this.floatingTexts.forEach(ft => ft.draw(this.ctx));
+
+        this.ctx.restore();
+    }
+}
+
+window.addEventListener('load', () => {
+    const gameEngine = new Game();
+    window.requestAnimationFrame((t) => gameEngine.run(t));
+});
+</script>
+</body>
+</html>
