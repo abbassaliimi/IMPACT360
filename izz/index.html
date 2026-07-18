@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>cacing berbisa</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000000;
+            touch-action: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 450px;
+            max-height: 850px;
+            aspect-ratio: 9 / 16;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            border: 4px solid #222;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+        }
+
+        canvas {
+            display: block;
+            background: #050505;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+            z-index: 10;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+        }
+
+        .score-box {
+            font-size: 18px;
+            font-weight: 900;
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .mute-btn {
+            background: transparent;
+            border: 1px solid #fff;
+            color: #fff;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .question-box {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            color: #000;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .screen-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 25px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 900;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .tagline {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .panel-info {
+            font-size: 15px;
+            color: #fff;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 20px;
+            border-radius: 4px;
+        }
+
+        .action-btn {
+            font-size: 16px;
+            color: #000;
+            font-weight: 900;
+            background: #fff;
+            padding: 14px 35px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255,255,255,0.4);
+        }
+
+        .rules {
+            font-size: 12px;
+            color: #666;
+            margin-top: 30px;
+            line-height: 1.5;
+            max-width: 300px;
+        }
+
+        .high-score-banner {
+            background: #fff;
+            color: #000;
+            font-weight: 900;
+            font-size: 14px;
+            padding: 4px 15px;
+            border-radius: 2px;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="ui-overlay">
+            <div>
+                <div class="hud-top">
+                    <div class="score-box">SKOR: <span id="liveScore">0</span></div>
+                    <button class="mute-btn interactive" id="muteToggle">🔊 MUTE</button>
+                </div>
+                <div class="question-box" id="hudQuestion">Sila mulakan permainan.</div>
+            </div>
+            <div></div>
+        </div>
+
+        <!-- Mula -->
+        <div class="screen-modal interactive" id="menuScreen">
+            <h1>cacing berbisa</h1>
+            <div class="tagline">Cabaran Tatabahasa & Ejaan Noir Tanpa Bocor</div>
+            <div class="panel-info">REKOD TERTINGGI: <span id="highScoreStart">0</span></div>
+            <div class="action-btn">MULA KHIDMAT</div>
+            <div class="rules">
+                <strong>MANUAL:</strong> Ketik/Klik skrin untuk memusingkan cacing 90° mengikut arah jam. Baca soalan di atas, dan cari jawapan betul secara mandiri. Semua kotak jawapan adalah sama warna dan kini berjarak jauh (minima 5 blok) untuk mengelakkan kekeliruan pergerakan.
+            </div>
+        </div>
+
+        <!-- Tamat -->
+        <div class="screen-modal interactive hidden" id="gameOverScreen">
+            <div id="newHighTag" class="high-score-banner hidden">⚡ REKOD BAHARU DIARKIBKAN ⚡</div>
+            <h1 style="color: #fff; text-decoration: underline;">MISI TAMAT</h1>
+            <div id="failReason" style="font-size: 13px; color: #ccc; margin: 10px 0 20px 0;">Cacing terhantar impak maut.</div>
+            <div class="panel-info" style="margin-bottom: 10px;">SKOR AKHIR: <span id="finalScore">0</span></div>
+            <div class="panel-info" style="color: #aaa; border-color: #222;">REKOD TERBAIK: <span id="highScoreEnd">0</span></div>
+            <div class="action-btn" style="background: #fff; color: #000;">Cuba Lagi</div>
+        </div>
+    </div>
+
+    <script>
+        const QUESTION_BANK = [
+            { id: 1, q: "Pilih ejaan yang BETUL:", r: "Ambulans", w: ["Ambulanss", "Ambulan", "Embulan"] },
+            { id: 2, q: "Cari kata imbuhan yang BETUL:", r: "Memperlebar", w: ["Memperlebarkan", "Memperdiperlebar", "Melebarkankan"] },
+            { id: 3, q: "Pilih penggunaan kata sendi yang BETUL:", r: "Demi kepentingan bersama", w: ["Demi untuk kepentingan", "Di atas kepentingan", "Kepada kepentingan"] },
+            { id: 4, q: "Pilih ejaan perkataan pinjaman yang BETUL:", r: "Ekosistem", w: ["Ekosistim", "Eko-sistem", "Ikosisitem"] },
+            { id: 5, q: "Mana satu frasa tatabahasa yang BETUL?", r: "Pisang goreng", w: ["Goreng pisang", "Pisang digorengkan", "Gorengan pisang"] },
+            { id: 6, q: "Pilih kata bilangan yang BETUL:", r: "Kedua-dua buah rumah", w: ["Kedua buah rumah", "Tiap buah rumah", "Setengah rumah-rumah"] },
+            { id: 7, q: "Cari perkataan dengan imbuhan yang BETUL:", r: "Mendedahkan", w: ["Menyahkan", "Memedahkan", "Mengdahkan"] },
+            { id: 8, q: "Pilih ejaan istilah rasmi yang BETUL:", r: "Urus setia", w: ["Urusetia", "Urus-setia", "Urusetiya"] },
+            { id: 9, q: "Pilih ayat hukum DM yang BETUL:", r: "Pendingin hawa", w: ["Pendingin aircon", "Hawa pendingin", "Hawa dingin"] },
+            { id: 10, q: "Pilih ejaan yang BETUL:", r: "Istiadat", w: ["Istiadadh", "Istihadat", "Istidat"] }
+        ];
+
+        const CONFIG = {
+            gridSize: 20,
+            virtualWidth: 400,
+            virtualHeight: 600,
+            moveInterval: 0.18, 
+            visuals: {
+                bg: '#050505',
+                gridLine: '#111111',
+                snakeHead: '#ffffff',
+                snakeBody: '#aaaaaa',
+                appleAll: '#ffffff'
+            }
+        };
+
+        class SoundSystem {
+            constructor() {
+                this.audioCtx = null;
+                this.isMuted = false;
+            }
+            init() {
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+            }
+            toggle() {
+                this.isMuted = !this.isMuted;
+                return this.isMuted;
+            }
+            tap() {
+                if (this.isMuted || !this.audioCtx) return;
+                let osc = this.audioCtx.createOscillator();
+                let gain = this.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.audioCtx.currentTime + 0.04);
+                gain.gain.setValueAtTime(0.05, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.04);
+            }
+            score() {
+                if (this.isMuted || !this.audioCtx) return;
+                let now = this.audioCtx.currentTime;
+                let osc = this.audioCtx.createOscillator();
+                let gain = this.audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(now + 0.2);
+            }
+            crash() {
+                if (this.isMuted || !this.audioCtx) return;
+                let osc = this.audioCtx.createOscillator();
+                let gain = this.audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(50, this.audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.3);
+            }
+        }
+
+        const audio = new SoundSystem();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                let angle = Math.random() * Math.PI * 2;
+                let speed = Math.random() * 80 + 30;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 2 + 1.5;
+            }
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.alpha -= this.decay * dt;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+                ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.vy = -40;
+                this.alpha = 1;
+            }
+            update(dt) {
+                this.y += this.vy * dt;
+                this.alpha -= 1.8 * dt;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.font = 'bold 14px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.container = document.getElementById('game-container');
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.state = 'MENU';
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('cacing_berbisa_high')) || 0;
+                
+                this.snake = [];
+                this.direction = { x: 1, y: 0 };
+                
+                this.apples = []; 
+                this.currentQuestion = null;
+                this.usedQuestionIds = []; 
+                
+                this.particles = [];
+                this.popups = [];
+                this.shakeTime = 0;
+                
+                this.moveTimer = 0;
+                this.lastFrameTime = 0;
+                
+                this.setupResponsive();
+                this.bindInputEvents();
+                this.updateUI();
+            }
+
+            setupResponsive() {
+                const resize = () => {
+                    let w = this.container.clientWidth;
+                    let h = this.container.clientHeight;
+                    let scale = Math.min(w / CONFIG.virtualWidth, h / CONFIG.virtualHeight);
+                    let dpr = window.devicePixelRatio || 1;
+                    
+                    this.canvas.width = CONFIG.virtualWidth * scale * dpr;
+                    this.canvas.height = CONFIG.virtualHeight * scale * dpr;
+                    this.canvas.style.width = (CONFIG.virtualWidth * scale) + 'px';
+                    this.canvas.style.height = (CONFIG.virtualHeight * scale) + 'px';
+                    this.ctx.scale(scale * dpr, scale * dpr);
+                };
+                window.addEventListener('resize', resize);
+                setTimeout(resize, 100);
+            }
+
+            bindInputEvents() {
+                const handleAction = (e) => {
+                    if (e && e.cancelable) e.preventDefault();
+                    audio.init();
+
+                    if (this.state === 'MENU') {
+                        this.startRound();
+                    } else if (this.state === 'PLAYING') {
+                        audio.tap();
+                        const currentX = this.direction.x;
+                        const currentY = this.direction.y;
+                        
+                        if (currentX === 1 && currentY === 0) { 
+                            this.direction = { x: 0, y: 1 };
+                        } else if (currentX === 0 && currentY === 1) { 
+                            this.direction = { x: -1, y: 0 };
+                        } else if (currentX === -1 && currentY === 0) { 
+                            this.direction = { x: 0, y: -1 };
+                        } else if (currentX === 0 && currentY === -1) { 
+                            this.direction = { x: 1, y: 0 };
+                        }
+                    } else if (this.state === 'GAMEOVER') {
+                        this.startRound();
+                    }
+                };
+
+                window.addEventListener('touchstart', (e) => {
+                    if (e.target.classList.contains('interactive')) return;
+                    handleAction(e);
+                }, { passive: false });
+
+                window.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('interactive')) return;
+                    handleAction(null);
+                });
+
+                document.getElementById('muteToggle').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    let muted = audio.toggle();
+                    document.getElementById('muteToggle').textContent = muted ? '🔇 MUTED' : '🔊 MUTE';
+                });
+            }
+
+            updateUI() {
+                document.getElementById('highScoreStart').textContent = this.highScore;
+                document.getElementById('highScoreEnd').textContent = this.highScore;
+                document.getElementById('liveScore').textContent = this.score;
+            }
+
+            startRound() {
+                this.snake = [
+                    { x: 5, y: 15 },
+                    { x: 4, y: 15 },
+                    { x: 3, y: 15 }
+                ];
+                this.direction = { x: 1, y: 0 };
+                this.score = 0;
+                this.particles = [];
+                this.popups = [];
+                this.shakeTime = 0;
+                this.moveTimer = 0;
+                this.usedQuestionIds = []; 
+                
+                this.nextQuestion();
+                this.state = 'PLAYING';
+                
+                document.getElementById('menuScreen').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('newHighTag').classList.add('hidden');
+                this.updateUI();
+                
+                this.lastFrameTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            nextQuestion() {
+                let available = QUESTION_BANK.filter(q => !this.usedQuestionIds.includes(q.id));
+                
+                if (available.length === 0) {
+                    this.usedQuestionIds = [];
+                    available = QUESTION_BANK;
+                }
+
+                const pool = available[Math.floor(Math.random() * available.length)];
+                this.usedQuestionIds.push(pool.id);
+
+                this.currentQuestion = {
+                    text: pool.q,
+                    correctAnswer: pool.r,
+                    wrongAnswers: pool.w
+                };
+
+                document.getElementById('hudQuestion').textContent = this.currentQuestion.text;
+                this.spawnApples();
+            }
+
+            spawnApples() {
+                this.apples = [];
+                let items = [
+                    { text: this.currentQuestion.correctAnswer, isCorrect: true },
+                    { text: this.currentQuestion.wrongAnswers[0], isCorrect: false },
+                    { text: this.currentQuestion.wrongAnswers[1], isCorrect: false }
+                ];
+
+                items = items.sort(() => Math.random() - 0.5);
+
+                const cols = CONFIG.virtualWidth / CONFIG.gridSize;
+                const rows = CONFIG.virtualHeight / CONFIG.gridSize;
+
+                items.forEach((item) => {
+                    let placed = false;
+                    let attempts = 0;
+                    
+                    while (!placed && attempts < 200) {
+                        attempts++;
+                        let rx = Math.floor(Math.random() * (cols - 4)) + 2;
+                        let ry = Math.floor(Math.random() * (rows - 6)) + 4; 
+
+                        let conflictWithSnake = this.snake.some(s => s.x === rx && s.y === ry);
+                        
+                        let tooCloseToOtherApples = this.apples.some(a => {
+                            let distance = Math.abs(a.x - rx) + Math.abs(a.y - ry);
+                            return distance < 5;
+                        });
+
+                        if (!conflictWithSnake && !tooCloseToOtherApples) {
+                            this.apples.push({
+                                x: rx,
+                                y: ry,
+                                label: item.text,
+                                isCorrect: item.isCorrect
+                            });
+                            placed = true;
+                        }
+                    }
+                    
+                    if (!placed) {
+                        let rx = Math.floor(Math.random() * (cols - 4)) + 2;
+                        let ry = Math.floor(Math.random() * (rows - 6)) + 4;
+                        this.apples.push({
+                            x: rx,
+                            y: ry,
+                            label: item.text,
+                            isCorrect: item.isCorrect
+                        });
+                    }
+                });
+            }
+
+            gameOver(reason) {
+                this.state = 'GAMEOVER';
+                this.shakeTime = 0.4;
+                audio.crash();
+                
+                const headPx = this.snake[0].x * CONFIG.gridSize + CONFIG.gridSize/2;
+                const headPy = this.snake[0].y * CONFIG.gridSize + CONFIG.gridSize/2;
+                for (let i = 0; i < 25; i++) {
+                    this.particles.push(new Particle(headPx, headPy, '#ffffff'));
+                }
+
+                let isNewHigh = false;
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('cacing_berbisa_high', this.highScore);
+                    isNewHigh = true;
+                }
+
+                document.getElementById('failReason').textContent = reason;
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('highScoreEnd').textContent = this.highScore;
+                
+                if (isNewHigh) {
+                    document.getElementById('newHighTag').classList.remove('hidden');
+                }
+                
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+                this.updateUI();
+            }
+
+            loop(timestamp) {
+                let dt = (timestamp - this.lastFrameTime) / 1000;
+                this.lastFrameTime = timestamp;
+
+                if (dt > 0.1) dt = 0.1;
+
+                this.updateSimulations(dt);
+                this.render();
+
+                if (this.state === 'PLAYING' || this.particles.length > 0) {
+                    requestAnimationFrame((t) => this.loop(t));
+                }
+            }
+
+            updateSimulations(dt) {
+                if (this.state === 'PLAYING') {
+                    this.moveTimer += dt;
+                    if (this.moveTimer >= CONFIG.moveInterval) {
+                        this.moveTimer = 0;
+                        this.advanceSnake();
+                    }
+                }
+
+                this.particles.forEach(p => p.update(dt));
+                this.particles = this.particles.filter(p => p.alpha > 0);
+
+                this.popups.forEach(pop => pop.update(dt));
+                this.popups = this.popups.filter(pop => pop.alpha > 0);
+
+                if (this.shakeTime > 0) {
+                    this.shakeTime -= dt;
+                }
+            }
+
+            advanceSnake() {
+                const newHead = {
+                    x: this.snake[0].x + this.direction.x,
+                    y: this.snake[0].y + this.direction.y
+                };
+
+                const maxCols = CONFIG.virtualWidth / CONFIG.gridSize;
+                const maxRows = CONFIG.virtualHeight / CONFIG.gridSize;
+
+                if (newHead.x < 0 || newHead.x >= maxCols || newHead.y < 0 || newHead.y >= maxRows) {
+                    this.gameOver("Rempuhan sempadan! Cacing musnah terlanggar dinding sekatan.");
+                    return;
+                }
+
+                if (this.snake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+                    this.gameOver("Impak kendiri! Cacing melanggar tubuh ekor sendiri.");
+                    return;
+                }
+
+                this.snake.unshift(newHead);
+
+                let appleIndex = this.apples.findIndex(a => a.x === newHead.x && a.y === newHead.y);
+                
+                if (appleIndex !== -1) {
+                    const targetApple = this.apples[appleIndex];
+                    const centerPx = targetApple.x * CONFIG.gridSize + CONFIG.gridSize / 2;
+                    const centerPy = targetApple.y * CONFIG.gridSize + CONFIG.gridSize / 2;
+
+                    if (targetApple.isCorrect) {
+                        this.score += 10;
+                        audio.score();
+                        this.popups.push(new FloatingText(centerPx, centerPy, "+10 TEPAT!", '#ffffff'));
+                        
+                        for(let i=0; i<12; i++) {
+                            this.particles.push(new Particle(centerPx, centerPy, '#ffffff'));
+                        }
+
+                        document.getElementById('liveScore').textContent = this.score;
+                        this.nextQuestion();
+                    } else {
+                        this.gameOver(`Keracunan Tatabahasa! Anda termakan [${targetApple.label}]. Jawapan sebenar ialah [${this.currentQuestion.correctAnswer}].`);
+                    }
+                } else {
+                    this.snake.pop();
+                }
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, CONFIG.virtualWidth, CONFIG.virtualHeight);
+                
+                this.ctx.save();
+                if (this.shakeTime > 0) {
+                    let intensity = 6;
+                    this.ctx.translate((Math.random() - 0.5) * intensity, (Math.random() - 0.5) * intensity);
+                }
+
+                this.ctx.fillStyle = CONFIG.visuals.bg;
+                this.ctx.fillRect(0, 0, CONFIG.virtualWidth, CONFIG.virtualHeight);
+
+                this.ctx.strokeStyle = CONFIG.visuals.gridLine;
+                this.ctx.lineWidth = 1;
+                for (let x = 0; x < CONFIG.virtualWidth; x += CONFIG.gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, CONFIG.virtualHeight);
+                    this.ctx.stroke();
+                }
+                for (let y = 0; y < CONFIG.virtualHeight; y += CONFIG.gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(CONFIG.virtualWidth, y);
+                    this.ctx.stroke();
+                }
+
+                this.apples.forEach(apple => {
+                    const px = apple.x * CONFIG.gridSize;
+                    const py = apple.y * CONFIG.gridSize;
+
+                    this.ctx.fillStyle = CONFIG.visuals.appleAll;
+                    this.ctx.fillRect(px + 2, py + 2, CONFIG.gridSize - 4, CONFIG.gridSize - 4);
+                    this.ctx.strokeStyle = '#888888';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(px + 2, py + 2, CONFIG.gridSize - 4, CONFIG.gridSize - 4);
+
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.font = 'bold 10px sans-serif';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(apple.label, px + CONFIG.gridSize / 2, py - 5);
+                });
+
+                this.snake.forEach((segment, idx) => {
+                    const px = segment.x * CONFIG.gridSize;
+                    const py = segment.y * CONFIG.gridSize;
+
+                    if (idx === 0) {
+                        this.ctx.fillStyle = CONFIG.visuals.snakeHead;
+                        this.ctx.fillRect(px + 1, py + 1, CONFIG.gridSize - 2, CONFIG.gridSize - 2);
+                        
+                        this.ctx.fillStyle = '#000000';
+                        this.ctx.fillRect(px + CONFIG.gridSize/2 - 2, py + CONFIG.gridSize/2 - 2, 4, 4);
+                    } else {
+                        let alphaRate = 1 - (idx / this.snake.length);
+                        this.ctx.fillStyle = `rgba(170, 170, 170, ${alphaRate * 0.9})`;
+                        this.ctx.fillRect(px + 2, py + 2, CONFIG.gridSize - 4, CONFIG.gridSize - 4);
+                    }
+                });
+
+                this.particles.forEach(p => p.draw(this.ctx));
+                this.popups.forEach(pop => pop.draw(this.ctx));
+
+                this.ctx.restore();
+            }
+        }
+
+        window.addEventListener('load', () => {
+            new Game();
+        });
+    </script>
+</body>
+</html>
