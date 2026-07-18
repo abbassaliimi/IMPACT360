@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ALGEBRA HARDCORE: JOKOWI vs PRABOWO</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            color: #fff;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #050014 0%, #000000 100%);
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        #menu-screen {
+            background: rgba(0, 0, 0, 0.9);
+            border: 4px solid #ff0033;
+        }
+
+        #game-over-screen {
+            background: rgba(25, 0, 0, 0.95);
+            border: 4px solid #ff0033;
+            display: none;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(255, 0, 51, 0.5);
+        }
+        
+        .vs-text {
+            font-size: 1.2rem;
+            color: #ff0033;
+            font-weight: bold;
+            margin: 2px 0;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #00ffcc;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .instructions {
+            font-size: 0.8rem;
+            color: #ccc;
+            max-width: 85%;
+            margin: 10px 0;
+            line-height: 1.4;
+            border: 1px solid #ff0033;
+            padding: 12px;
+            background: rgba(255, 0, 51, 0.05);
+            text-align: left;
+        }
+
+        .cta-text {
+            font-size: 1.1rem;
+            color: #fff;
+            margin: 20px 0;
+            animation: blink 1.2s infinite;
+            font-weight: bold;
+            border: 2px dashed #ff0033;
+            padding: 10px 20px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .score-info {
+            font-size: 1.1rem;
+            margin: 8px 0;
+            color: #ffcc00;
+        }
+
+        .btn {
+            background: #ff0033;
+            color: white;
+            border: 2px solid #fff;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 5px 0 #990011;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: env(safe-area-inset-top, 20px) 20px 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .hud-item {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        #hud-score { color: #00ffcc; font-size: 1.4rem; }
+        #hud-breaches { color: #ff0033; }
+
+        #mute-btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            font-size: 1.2rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- HUD -->
+        <div id="hud">
+            <div id="hud-breaches" class="hud-item">BREACHES: 0/5</div>
+            <div id="hud-score" class="hud-item">SCORE: 0</div>
+            <button id="mute-btn">🔊</button>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="menu-screen" class="overlay">
+            <h1>JOKOWI<br><span style="color:#aaa; font-size:1.1rem;">pria solo</span></h1>
+            <div class="vs-text">VS</div>
+            <h1>PRABOWO<br><span style="color:#ff0033; font-size:1.1rem;">pria sawit</span></h1>
+            <div class="subtitle">Anwar Starship: Advanced Algebra Engine</div>
+            
+            <div class="instructions">
+                <b>⚠️ RULES OF ENGAGEMENT:</b><br>
+                1. Gerakkan pesawat menggunakan kursor/jari tangan.<br>
+                2. <span style="color:#00ffcc; font-weight:bold;">KLIK KIRI MOUSE (atau TAP LAYAR) untuk menembak laser!</span><br>
+                3. Di bawah musuh ada 3 target nilai <b>[ x ]</b>.<br>
+                4. Tembak hanya nilai <b>x yang BENAR</b> untuk menghancurkan musuh.<br>
+                5. <span style="color:#ff0033; font-weight:bold;">JIKA MENEMBAK JAWABAN YANG SALAH = ANDA MATI INSTAN!</span>
+            </div>
+
+            <div class="score-info" id="menu-highscore">HIGH SCORE: 0</div>
+            <div class="cta-text">TAP/KLIK DI MANA SAJA UNTUK MEMULAI</div>
+        </div>
+
+        <!-- Game Over -->
+        <div id="game-over-screen" class="overlay">
+            <h1 style="color: #ff0033;" id="go-title">EVALUATION FAILED</h1>
+            <p class="subtitle" id="go-reason">Unsolved math formulation breached your hull!</p>
+            <div class="score-info" id="go-score">FINAL SCORE: 0</div>
+            <div class="score-info" id="go-highscore" style="color: #aaa;">HIGH SCORE: 0</div>
+            <button class="btn" id="restart-btn" style="margin-top: 30px;">RE-CALCULATE</button>
+        </div>
+    </div>
+
+<script>
+// --- CHALLENGING ALGEBRA GENERATOR (Multi-step equations) ---
+function generateChallengingEquation() {
+    const types = ['two-step-add', 'two-step-sub', 'brackets', 'variables-both-sides'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    let x = Math.floor(Math.random() * 12) + 1; 
+    let text = "";
+    
+    if (type === 'two-step-add') {
+        let a = Math.floor(Math.random() * 4) + 2; 
+        let b = Math.floor(Math.random() * 15) + 1;
+        let c = a * x + b;
+        text = `${a}x + ${b} = ${c}`;
+    } else if (type === 'two-step-sub') {
+        let a = Math.floor(Math.random() * 4) + 2;
+        let b = Math.floor(Math.random() * 12) + 1;
+        let c = a * x - b;
+        text = `${a}x - ${b} = ${c}`;
+    } else if (type === 'brackets') {
+        let a = Math.floor(Math.random() * 3) + 2; 
+        let b = Math.floor(Math.random() * 5) + 1;
+        let c = a * (x + b);
+        text = `${a}(x + ${b}) = ${c}`;
+    } else if (type === 'variables-both-sides') {
+        let c = Math.floor(Math.random() * 3) + 2; 
+        let diff = Math.floor(Math.random() * 3) + 2; 
+        let a = c + diff; 
+        let b = Math.floor(Math.random() * 10) + 1;
+        let d = diff * x + b;
+        text = `${a}x + ${b} = ${c}x + ${d}`;
+    }
+
+    let choices = new Set([x]);
+    while (choices.size < 3) {
+        let fake = x + (Math.floor(Math.random() * 7) - 3);
+        if (fake > 0 && fake !== x) choices.add(fake);
+    }
+    
+    return { 
+        text, 
+        answer: x, 
+        options: Array.from(choices).sort(() => Math.random() - 0.5) 
+    };
+}
+
+// --- CONFIGURATION MATRIX ---
+const CONFIG = {
+    PLAYER_SPEED_LERP: 0.25,
+    BASE_ENEMY_SPEED: 35, // Sedikit diperlambat agar pemain punya waktu membidik manual
+    MAX_BREACHES: 5,
+    SPAWN_RATE: 5.0 
+};
+
+// --- AUDIO CONTROLLER ---
+class AudioController {
+    constructor() { this.ctx = null; this.isMuted = false; }
+    init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    playLaser() {
+        if (this.isMuted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.1);
+    }
+    playExplosion() {
+        if (this.isMuted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(30, now + 0.4);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.4);
+    }
+    playGameOver() {
+        if (this.isMuted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.linearRampToValueAtTime(20, now + 1.0);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0, now + 1.0);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 1.0);
+    }
+}
+const audio = new AudioController();
+
+// --- ENTITIES ---
+class Player {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.targetX = x; this.targetY = y;
+        this.radius = 20;
+    }
+    update(dt, cw, ch) {
+        this.x += (this.targetX - this.x) * CONFIG.PLAYER_SPEED_LERP;
+        this.y += (this.targetY - this.y) * CONFIG.PLAYER_SPEED_LERP;
+        if (this.x < this.radius) this.x = this.radius;
+        if (this.x > cw - this.radius) this.x = cw - this.radius;
+        if (this.y < this.radius) this.y = this.radius;
+        if (this.y > ch - this.radius) this.y = ch - this.radius;
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.beginPath();
+        ctx.moveTo(0, -20); ctx.lineTo(18, 12); ctx.lineTo(0, 4); ctx.lineTo(-18, 12);
+        ctx.closePath(); ctx.fillStyle = '#ffffff'; ctx.fill();
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+    }
+}
+
+class Laser {
+    constructor(x, y) { this.x = x; this.y = y; this.speed = 800; this.radius = 3; }
+    update(dt) { this.y -= this.speed * dt; }
+    draw(ctx) {
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = '#ffcc00'; ctx.fill();
+    }
+}
+
+class MathOptionNode {
+    constructor(offsetX, offsetY, value, isCorrect) {
+        this.offsetX = offsetX; 
+        this.offsetY = offsetY; 
+        this.x = 0;
+        this.y = 0;
+        this.value = value;
+        this.isCorrect = isCorrect;
+        this.radius = 16;
+    }
+    update(parentX, parentY) {
+        this.x = parentX + this.offsetX;
+        this.y = parentY + this.offsetY;
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = '#000'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
+        ctx.fill(); ctx.stroke();
+        
+        ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`x=${this.value}`, 0, 0);
+        ctx.restore();
+    }
+}
+
+class AlgebraEnemy {
+    constructor(x) {
+        this.x = x; this.y = -60;
+        this.radius = 32;
+        this.speed = CONFIG.BASE_ENEMY_SPEED + (Math.random() * 12);
+        this.isSoloType = Math.random() > 0.5;
+        
+        const eqData = generateChallengingEquation();
+        this.equationText = eqData.text;
+        this.answer = eqData.answer;
+        
+        this.optionsNodes = [
+            new MathOptionNode(-55, 45, eqData.options[0], eqData.options[0] === this.answer),
+            new MathOptionNode(0, 45, eqData.options[1], eqData.options[1] === this.answer),
+            new MathOptionNode(55, 45, eqData.options[2], eqData.options[2] === this.answer)
+        ];
+    }
+    update(dt) { 
+        this.y += this.speed * dt; 
+        this.optionsNodes.forEach(node => node.update(this.x, this.y));
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        this.optionsNodes.forEach(node => {
+            ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(node.x, node.y); ctx.stroke();
+        });
+
+        ctx.translate(this.x, this.y);
+        ctx.beginPath();
+        if(this.isSoloType) {
+            ctx.rect(-35, -15, 70, 30); ctx.fillStyle = '#111'; ctx.strokeStyle = '#aaa';
+        } else {
+            ctx.moveTo(0, -22); ctx.lineTo(38, 0); ctx.lineTo(0, 22); ctx.lineTo(-38, 0); ctx.closePath();
+            ctx.fillStyle = '#140003'; ctx.strokeStyle = '#ff0033';
+        }
+        ctx.lineWidth = 2; ctx.stroke(); ctx.fill();
+
+        ctx.font = 'bold 11px Courier New'; ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(this.equationText, 0, 0);
+        ctx.restore();
+
+        this.optionsNodes.forEach(node => node.draw(ctx));
+    }
+}
+
+class VisualEffect {
+    constructor(x, y, color) {
+        this.x = x; this.y = y; this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const s = Math.random() * 160 + 40;
+        this.vx = Math.sin(angle) * s; this.vy = Math.cos(angle) * s;
+        this.life = 0.4; this.maxLife = 0.4;
+    }
+    update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt; }
+    draw(ctx) {
+        ctx.save(); ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+        ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI*2);
+        ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) { this.x = x; this.y = y; this.text = text; this.color = color; this.life = 1.0; }
+    update(dt) { this.y -= 25 * dt; this.life -= dt; }
+    draw(ctx) {
+        ctx.save(); ctx.globalAlpha = Math.max(0, this.life / 1.0);
+        ctx.font = 'bold 16px Courier New'; ctx.fillStyle = this.color;
+        ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.restore();
+    }
+}
+
+// --- MAIN ENGINE CONTROLLER ---
+class GameEngine {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.gameState = 'MENU';
+        this.score = 0;
+        this.highScore = parseInt(localStorage.getItem('algebra_hardcore_high')) || 0;
+        this.breaches = 0;
+        
+        this.player = null;
+        this.lasers = [];
+        this.enemies = [];
+        this.effects = [];
+        this.popups = [];
+        
+        this.lastTime = 0;
+        this.spawnTimer = 0;
+        this.shake = 0;
+
+        this.bindEvents();
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        document.getElementById('menu-highscore').innerText = `HIGH SCORE: ${this.highScore}`;
+    }
+
+    resize() {
+        const dpr = window.devicePixelRatio || 1;
+        this.width = window.innerWidth; this.height = window.innerHeight;
+        this.canvas.width = this.width * dpr; this.canvas.height = this.height * dpr;
+        this.ctx.scale(dpr, dpr);
+    }
+
+    bindEvents() {
+        const container = document.getElementById('game-container');
+        
+        const parseTouchMove = (e) => {
+            if (this.gameState !== 'PLAYING' || !this.player) return;
+            const t = e.touches ? e.touches[0] : e;
+            const r = this.canvas.getBoundingClientRect();
+            this.player.targetX = t.clientX - r.left; this.player.targetY = t.clientY - r.top;
+        };
+
+        // Mengatur pergerakan pesawat lewat mouse / jari
+        container.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouchMove(e); }, { passive: false });
+        container.addEventListener('mousemove', (e) => {
+            if (this.gameState === 'PLAYING' && this.player) { this.player.targetX = e.clientX; this.player.targetY = e.clientY; }
+        });
+
+        // HANYA TEMBAK SAAT KLIK KIRI MOUSE (atau tap layar)
+        container.addEventListener('mousedown', (e) => {
+            audio.init(); 
+            if (this.gameState === 'MENU') {
+                this.start();
+                return;
+            }
+            // Pastikan game sedang berjalan, pesawat hidup, dan tombol yang diklik adalah klik kiri (button === 0)
+            if (this.gameState === 'PLAYING' && this.player && e.button === 0) {
+                audio.playLaser();
+                this.lasers.push(new Laser(this.player.x, this.player.y - 20));
+            }
+        });
+
+        container.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            audio.init();
+            if (this.gameState === 'MENU') {
+                this.start();
+            } else if (this.gameState === 'PLAYING' && this.player) {
+                // Perbarui posisi target sekaligus tembak langsung untuk mobile touch
+                parseTouchMove(e);
+                audio.playLaser();
+                this.lasers.push(new Laser(this.player.x, this.player.y - 20));
+            }
+        }, { passive: false });
+
+        document.getElementById('restart-btn').addEventListener('click', (e) => { e.stopPropagation(); this.start(); });
+        const mute = document.getElementById('mute-btn');
+        mute.addEventListener('click', (e) => { e.stopPropagation(); audio.isMuted = !audio.isMuted; mute.innerText = audio.isMuted?'🔇':'🔊'; });
+    }
+
+    start() {
+        this.score = 0; this.breaches = 0; this.spawnTimer = 0;
+        this.lasers = []; this.enemies = []; this.effects = []; this.popups = [];
+        this.player = new Player(this.width / 2, this.height * 0.85);
+        document.getElementById('hud-score').innerText = 'SCORE: 0';
+        document.getElementById('hud-breaches').innerText = `BREACHES: 0/${CONFIG.MAX_BREACHES}`;
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('game-over-screen').style.display = 'none';
+        this.gameState = 'PLAYING';
+    }
+
+    gameOver(reasonTitle, reasonBody) {
+        this.gameState = 'GAMEOVER'; audio.playGameOver();
+        
+        if(this.score > this.highScore) {
+            this.highScore = this.score; localStorage.setItem('algebra_hardcore_high', this.highScore);
+        }
+        
+        document.getElementById('go-title').innerText = reasonTitle;
+        document.getElementById('go-reason').innerText = reasonBody;
+        document.getElementById('go-score').innerText = `FINAL SCORE: ${this.score}`;
+        document.getElementById('go-highscore').innerText = `HIGH SCORE: ${this.highScore}`;
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }
+
+    update(dt) {
+        if (this.shake > 0) this.shake -= dt * 25;
+        if (this.gameState !== 'PLAYING') return;
+
+        // Spawn Timer
+        this.spawnTimer += dt;
+        if(this.spawnTimer >= CONFIG.SPAWN_RATE) {
+            this.spawnTimer = 0;
+            this.enemies.push(new AlgebraEnemy(Math.random() * (this.width - 160) + 80));
+        }
+
+        if(this.player) this.player.update(dt, this.width, this.height);
+        this.lasers.forEach((l, i) => { l.update(dt); if(l.y < -10) this.lasers.splice(i,1); });
+        
+        for(let i = this.enemies.length - 1; i >= 0; i--) {
+            this.enemies[i].update(dt);
+            if(this.enemies[i].y > this.height + 60) {
+                this.enemies.splice(i, 1);
+                this.breaches++; this.shake = 10;
+                document.getElementById('hud-breaches').innerText = `BREACHES: ${this.breaches}/${CONFIG.MAX_BREACHES}`;
+                if(this.breaches >= CONFIG.MAX_BREACHES) this.gameOver("DEFENSE BREACHED", "Too many equations bypassed the barrier grid!");
+            }
+        }
+
+        this.effects.forEach((e, i) => { e.update(dt); if(e.life <= 0) this.effects.splice(i,1); });
+        this.popups.forEach((p, i) => { p.update(dt); if(p.life <= 0) this.popups.splice(i,1); });
+
+        this.processCollisions();
+    }
+
+    processCollisions() {
+        if(!this.player) return;
+
+        for(let l = this.lasers.length - 1; l >= 0; l--) {
+            let laser = this.lasers[l];
+
+            for(let e = this.enemies.length - 1; e >= 0; e--) {
+                let enemy = this.enemies[e];
+                let hitDetected = false;
+
+                for(let n = 0; n < enemy.optionsNodes.length; n++) {
+                    let node = enemy.optionsNodes[n];
+                    
+                    if(Math.hypot(laser.x - node.x, laser.y - node.y) < node.radius + laser.radius) {
+                        this.lasers.splice(l, 1); 
+                        hitDetected = true;
+
+                        if(node.isCorrect) {
+                            audio.playExplosion();
+                            for(let k=0; k<25; k++) this.effects.push(new VisualEffect(enemy.x, enemy.y, '#00ffcc'));
+                            
+                            this.score += 100;
+                            this.popups.push(new FloatingText(enemy.x, enemy.y, `CORRECT! +100`, '#00ffcc'));
+                            document.getElementById('hud-score').innerText = `SCORE: ${this.score}`;
+                            
+                            this.enemies.splice(e, 1); 
+                        } else {
+                            for(let k=0; k<40; k++) this.effects.push(new VisualEffect(node.x, node.y, '#ff0033'));
+                            this.shake = 25;
+                            this.player = null;
+                            this.gameOver("WRONG CALCULATION", `You shot x=${node.value}. Correct answer for "${enemy.equationText}" was x=${enemy.answer}!`);
+                            return;
+                        }
+                        break;
+                    }
+                }
+                if(hitDetected) break; 
+            }
+        }
+
+        if(!this.player) return;
+        for(let e = this.enemies.length - 1; e >= 0; e--) {
+            let enemy = this.enemies[e];
+            if(Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y) < this.player.radius + enemy.radius) {
+                this.gameOver("CRASH IMPACT", "Hull integrity compromised by direct collision!");
+                return;
+            }
+            for(let node of enemy.optionsNodes) {
+                if(Math.hypot(this.player.x - node.x, this.player.y - node.y) < this.player.radius + node.radius) {
+                    this.gameOver("CRASH IMPACT", "Hull integrity compromised by sub-orbital matrix crystal!");
+                    return;
+                }
+            }
+        }
+    }
+
+    render() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.ctx.save();
+        if(this.shake > 0) this.ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
+
+        this.lasers.forEach(l => l.draw(this.ctx));
+        this.enemies.forEach(e => e.draw(this.ctx));
+        if(this.player) this.player.draw(this.ctx);
+        this.effects.forEach(e => e.draw(this.ctx));
+        this.popups.forEach(p => p.draw(this.ctx));
+
+        this.ctx.restore();
+    }
+
+    loop(t) {
+        if(!this.lastTime) this.lastTime = t;
+        let dt = Math.min(0.1, (t - this.lastTime)/1000);
+        this.lastTime = t;
+        this.update(dt); this.render();
+        window.requestAnimationFrame((time) => this.loop(time));
+    }
+}
+
+window.addEventListener('load', () => {
+    const game = new GameEngine();
+    window.requestAnimationFrame((t) => game.loop(t));
+});
+</script>
+</body>
+</html>
