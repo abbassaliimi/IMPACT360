@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Muhaimin RUN</title>
+    <style>
+        /* CSS Settings & Pop Art Aesthetics */
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Bangers', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #ffcc00; /* Comic Book Yellow */
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Typography & Buttons */
+        h1 {
+            font-size: 4rem;
+            color: #ff0055;
+            text-shadow: 4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+            margin: 0 0 10px 0;
+            transform: rotate(-3deg);
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        p {
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow: 2px 2px 0px #000;
+            margin: 0 0 30px 0;
+            text-align: center;
+        }
+
+        button {
+            background-color: #00e6e6;
+            border: 4px solid #000;
+            color: #fff;
+            font-family: inherit;
+            font-size: 2rem;
+            padding: 15px 40px;
+            cursor: pointer;
+            box-shadow: 6px 6px 0px #000;
+            transform: skew(-5deg);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active {
+            transform: skew(-5deg) translate(4px, 4px);
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        /* In-Game HUD */
+        #hud {
+            position: absolute;
+            top: env(safe-area-inset-top, 20px);
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .hud-text {
+            font-size: 2rem;
+            color: #fff;
+            text-shadow: 3px 3px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+        }
+
+        #mute-btn {
+            background-color: #ff0055;
+            font-size: 1.5rem;
+            padding: 10px;
+            box-shadow: 4px 4px 0px #000;
+        }
+
+        #game-over-screen {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .banner {
+            background-color: #ffcc00;
+            color: #000;
+            border: 4px solid #000;
+            padding: 5px 20px;
+            font-size: 1.5rem;
+            transform: rotate(5deg);
+            margin-bottom: 20px;
+            box-shadow: 4px 4px 0px #ff0055;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="hud" class="hidden">
+            <div class="hud-text">
+                <div id="score-display">0m</div>
+                <div id="lives-display">❤️❤️❤️</div>
+            </div>
+            <button id="mute-btn" class="interactive">🔊</button>
+        </div>
+
+        <div id="main-menu" class="ui-layer interactive">
+            <h1>MUHAIMIN<br>RUN</h1>
+            <p>HIGH SCORE: <span id="menu-high-score">0</span>m<br><br>Tap to Jump & Change Lanes.<br>Dodge Ninjas. Collect Coconuts!</p>
+            <button id="start-btn">TAP TO START</button>
+        </div>
+
+        <div id="game-over-screen" class="ui-layer interactive hidden">
+            <div id="new-high-score-banner" class="banner hidden">NEW HIGH SCORE!</div>
+            <h1>CRASHED!</h1>
+            <p>FINAL DISTANCE: <span id="final-score">0</span>m<br>BEST: <span id="game-over-high-score">0</span>m</p>
+            <button id="restart-btn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * GAME CONFIGURATION & CONSTANTS
+         */
+        const CONFIG = {
+            lanes: 3,
+            laneWidth: 100, // Pixels
+            baseSpeed: 400, // Pixels per second
+            speedMultiplier: 1.05, // Speed increase factor
+            gravity: 2500,
+            jumpForce: -800,
+            colors: {
+                bg: '#ffcc00',
+                halftone: '#e6b800',
+                tankMain: '#33cc33',
+                tankDark: '#248f24',
+                ninja: '#1a1a1a',
+                ninjaEye: '#ff0055',
+                coconut: '#8B4513',
+                coconutMeat: '#fff',
+                outline: '#000'
+            }
+        };
+
+        /**
+         * AUDIO CONTROLLER (Web Audio API)
+         */
+        class AudioController {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, vol, slideFreq = null) {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slideFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
+                }
+
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playJump() {
+                this.playTone(150, 'triangle', 0.2, 0.3, 400); // Upward slide
+            }
+
+            playCollect() {
+                // Two-tone chime (Major third)
+                this.playTone(523.25, 'sine', 0.1, 0.2); // C5
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); // E5
+            }
+
+            playDamage() {
+                this.playTone(150, 'sawtooth', 0.3, 0.3, 50); // Downward crash
+            }
+        }
+
+        const audio = new AudioController();
+
+        /**
+         * ENTITY CLASSES
+         */
+        class Player {
+            constructor() {
+                this.lane = 1; // 0: Left, 1: Center, 2: Right
+                this.y = 0; // Jump height (negative is up)
+                this.vy = 0;
+                this.isGrounded = true;
+                this.width = 60;
+                this.height = 80;
+                this.trail = []; // For motion trail effect
+            }
+
+            jumpAndSwitchLane() {
+                if (this.isGrounded) {
+                    audio.playJump();
+                    this.vy = CONFIG.jumpForce;
+                    this.isGrounded = false;
+                    this.lane = (this.lane + 1) % CONFIG.lanes;
+                }
+            }
+
+            update(dt) {
+                // Jump Physics
+                if (!this.isGrounded) {
+                    this.vy += CONFIG.gravity * (dt / 1000);
+                    this.y += this.vy * (dt / 1000);
+
+                    if (this.y >= 0) {
+                        this.y = 0;
+                        this.vy = 0;
+                        this.isGrounded = true;
+                    }
+                }
+
+                // Record trail
+                this.trail.push({ lane: this.lane, y: this.y });
+                if (this.trail.length > 5) this.trail.shift();
+            }
+
+            draw(ctx, getXForLane, baseY) {
+                const targetX = getXForLane(this.lane);
+
+                // Draw Trail
+                ctx.globalAlpha = 0.3;
+                this.trail.forEach((pos, i) => {
+                    const scale = i / this.trail.length;
+                    ctx.save();
+                    ctx.translate(getXForLane(pos.lane), baseY + pos.y);
+                    ctx.scale(scale, scale);
+                    this.drawTank(ctx, true);
+                    ctx.restore();
+                });
+                ctx.globalAlpha = 1.0;
+
+                // Draw Tank
+                ctx.save();
+                ctx.translate(targetX, baseY + this.y);
+                this.drawTank(ctx, false);
+                ctx.restore();
+            }
+
+            drawTank(ctx, isTrail) {
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = CONFIG.colors.outline;
+                
+                // Treads
+                ctx.fillStyle = isTrail ? '#fff' : '#444';
+                ctx.fillRect(-this.width/2 - 5, -this.height/2 + 10, 10, this.height - 20);
+                ctx.fillRect(this.width/2 - 5, -this.height/2 + 10, 10, this.height - 20);
+                if (!isTrail) {
+                    ctx.strokeRect(-this.width/2 - 5, -this.height/2 + 10, 10, this.height - 20);
+                    ctx.strokeRect(this.width/2 - 5, -this.height/2 + 10, 10, this.height - 20);
+                }
+
+                // Body
+                ctx.fillStyle = isTrail ? '#fff' : CONFIG.colors.tankMain;
+                ctx.fillRect(-this.width/2 + 5, -this.height/2, this.width - 10, this.height);
+                if (!isTrail) ctx.strokeRect(-this.width/2 + 5, -this.height/2, this.width - 10, this.height);
+
+                // Turret Base
+                ctx.fillStyle = isTrail ? '#fff' : CONFIG.colors.tankDark;
+                ctx.beginPath();
+                ctx.arc(0, 5, 15, 0, Math.PI * 2);
+                ctx.fill();
+                if (!isTrail) ctx.stroke();
+
+                // Barrel
+                ctx.fillStyle = isTrail ? '#fff' : '#666';
+                ctx.fillRect(-4, -this.height/2 - 15, 8, 25);
+                if (!isTrail) ctx.strokeRect(-4, -this.height/2 - 15, 8, 25);
+            }
+        }
+
+        class Entity {
+            constructor(type, lane, startY) {
+                this.type = type; // 'ninja' or 'coconut'
+                this.lane = lane;
+                this.y = startY; // Screen Y coordinate
+                this.radius = type === 'ninja' ? 25 : 20;
+                this.active = true;
+                this.pulse = 0;
+            }
+
+            update(dt, speed) {
+                this.y += speed * (dt / 1000);
+                this.pulse += 10 * (dt / 1000);
+            }
+
+            draw(ctx, getXForLane) {
+                const x = getXForLane(this.lane);
+                ctx.save();
+                ctx.translate(x, this.y);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = CONFIG.colors.outline;
+
+                if (this.type === 'ninja') {
+                    // Ninja
+                    ctx.fillStyle = CONFIG.colors.ninja;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Mask slot
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(-15, -5, 30, 10);
+                    
+                    // Evil Eyes
+                    ctx.fillStyle = CONFIG.colors.ninjaEye;
+                    ctx.fillRect(-8, -2, 4, 4);
+                    ctx.fillRect(4, -2, 4, 4);
+
+                } else {
+                    // Coconut (Scaling pulse effect)
+                    const scale = 1 + Math.sin(this.pulse) * 0.1;
+                    ctx.scale(scale, scale);
+
+                    ctx.fillStyle = CONFIG.colors.coconut;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Coconut spots
+                    ctx.fillStyle = CONFIG.colors.coconutMeat;
+                    ctx.beginPath();
+                    ctx.arc(-6, -6, 3, 0, Math.PI * 2);
+                    ctx.arc(6, -6, 3, 0, Math.PI * 2);
+                    ctx.arc(0, 6, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 400;
+                this.vy = (Math.random() - 0.5) * 400;
+                this.life = 1.0;
+                this.color = color;
+                this.size = Math.random() * 8 + 4;
+            }
+            update(dt) {
+                this.x += this.vx * (dt / 1000);
+                this.y += this.vy * (dt / 1000);
+                this.life -= 2 * (dt / 1000);
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.life * 5); // Spin
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctx.strokeRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 1.0;
+            }
+            update(dt) {
+                this.y -= 100 * (dt / 1000); // Float up
+                this.life -= 1.5 * (dt / 1000);
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.font = '30px Bangers, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 4;
+                ctx.strokeText(this.text, this.x, this.y);
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        /**
+         * MAIN GAME ENGINE
+         */
+        class GameEngine {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.state = 'MENU'; // MENU, PLAYING, GAMEOVER
+                this.highScore = parseInt(localStorage.getItem('muhaiminHighScore')) || 0;
+                
+                this.resetVariables();
+                this.setupInputs();
+                this.resize();
+                
+                window.addEventListener('resize', () => this.resize());
+                document.getElementById('menu-high-score').textContent = this.highScore;
+
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            resetVariables() {
+                this.score = 0;
+                this.lives = 3;
+                this.currentSpeed = CONFIG.baseSpeed;
+                this.distanceAcc = 0; // Accumulator for 1m score threshold
+                
+                this.player = new Player();
+                this.entities = [];
+                this.particles = [];
+                this.floatingTexts = [];
+                
+                this.spawnTimer = 0;
+                this.screenShake = 0;
+            }
+
+            resize() {
+                const dpr = window.devicePixelRatio || 1;
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                
+                this.canvas.width = this.width * dpr;
+                this.canvas.height = this.height * dpr;
+                this.ctx.scale(dpr, dpr);
+                
+                // Calculate responsive lane spacing
+                this.centerX = this.width / 2;
+                this.playerBaseY = this.height * 0.75; // Player sits 3/4 down screen
+            }
+
+            getXForLane(laneIndex) {
+                // Returns actual X coordinate based on lane index (0, 1, 2)
+                const offset = (laneIndex - 1) * Math.min(CONFIG.laneWidth, this.width / 3.5);
+                return this.centerX + offset;
+            }
+
+            setupInputs() {
+                const handleTap = (e) => {
+                    // Prevent default touches to stop zooming/scrolling
+                    if (e.type === 'touchstart') e.preventDefault(); 
+                    
+                    audio.init(); // Satisfy Autoplay
+
+                    if (this.state === 'PLAYING') {
+                        this.player.jumpAndSwitchLane();
+                    }
+                };
+
+                // Canvas input
+                this.canvas.addEventListener('mousedown', handleTap);
+                this.canvas.addEventListener('touchstart', handleTap, { passive: false });
+
+                // UI Buttons
+                document.getElementById('start-btn').addEventListener('click', (e) => {
+                    audio.init();
+                    this.startGame();
+                });
+
+                document.getElementById('restart-btn').addEventListener('click', (e) => {
+                    this.startGame();
+                });
+
+                const muteBtn = document.getElementById('mute-btn');
+                muteBtn.addEventListener('click', (e) => {
+                    audio.muted = !audio.muted;
+                    muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+                });
+            }
+
+            startGame() {
+                this.resetVariables();
+                this.state = 'PLAYING';
+                
+                document.getElementById('main-menu').classList.add('hidden');
+                document.getElementById('game-over-screen').classList.add('hidden');
+                document.getElementById('new-high-score-banner').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                
+                this.updateHUD();
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('game-over-screen').classList.remove('hidden');
+                document.getElementById('final-score').textContent = this.score;
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('muhaiminHighScore', this.highScore);
+                    document.getElementById('new-high-score-banner').classList.remove('hidden');
+                }
+                
+                document.getElementById('game-over-high-score').textContent = this.highScore;
+            }
+
+            spawnEntity() {
+                const lane = Math.floor(Math.random() * CONFIG.lanes);
+                const isCoconut = Math.random() < 0.3; // 30% chance for coconut
+                const type = isCoconut ? 'coconut' : 'ninja';
+                
+                // Spawn slightly off-screen top
+                this.entities.push(new Entity(type, lane, -50));
+            }
+
+            createExplosion(x, y, color) {
+                for(let i = 0; i < 15; i++) {
+                    this.particles.push(new Particle(x, y, color));
+                }
+            }
+
+            updateHUD() {
+                document.getElementById('score-display').textContent = `${this.score}m`;
+                document.getElementById('lives-display').textContent = '❤️'.repeat(this.lives);
+            }
+
+            update(dt) {
+                if (this.state !== 'PLAYING') return;
+
+                // Screen Shake reduction
+                if (this.screenShake > 0) this.screenShake -= dt;
+
+                // Progression logic
+                this.distanceAcc += this.currentSpeed * (dt / 1000);
+                if (this.distanceAcc >= 50) { // Arbitrary conversion logic (50px = 1m)
+                    this.score += 1;
+                    this.distanceAcc = 0;
+                    this.currentSpeed *= 1.001; // Slowly increase speed over time
+                    this.updateHUD();
+                }
+
+                this.player.update(dt);
+
+                // Spawner
+                this.spawnTimer -= dt;
+                // Spawn faster as speed increases
+                const spawnRate = Math.max(400, 1000 - (this.currentSpeed - CONFIG.baseSpeed));
+                if (this.spawnTimer <= 0) {
+                    this.spawnEntity();
+                    this.spawnTimer = spawnRate;
+                }
+
+                // Entity Update & Collision
+                for (let i = this.entities.length - 1; i >= 0; i--) {
+                    const ent = this.entities[i];
+                    ent.update(dt, this.currentSpeed);
+
+                    // Check Collision
+                    const hitBoxY = 40; // Approx half player height
+                    if (ent.active && 
+                        ent.lane === this.player.lane && 
+                        Math.abs(ent.y - (this.playerBaseY + this.player.y)) < hitBoxY) {
+                        
+                        ent.active = false; // Prevent multiple collisions
+                        const xPos = this.getXForLane(ent.lane);
+
+                        if (ent.type === 'ninja') {
+                            // Damage hit!
+                            this.lives--;
+                            audio.playDamage();
+                            this.screenShake = 300;
+                            this.createExplosion(xPos, ent.y, CONFIG.colors.ninjaEye);
+                            this.floatingTexts.push(new FloatingText(xPos, ent.y, "OUCH!", "#ff0055"));
+                            this.updateHUD();
+
+                            if (this.lives <= 0) {
+                                this.gameOver();
+                            }
+                        } else {
+                            // Coconut Collected!
+                            this.score += 5;
+                            audio.playCollect();
+                            this.createExplosion(xPos, ent.y, '#fff');
+                            this.floatingTexts.push(new FloatingText(xPos, ent.y, "+5", "#00e6e6"));
+                            this.updateHUD();
+                        }
+                    }
+
+                    // Remove if off bottom of screen
+                    if (ent.y > this.height + 100 || !ent.active) {
+                        this.entities.splice(i, 1);
+                    }
+                }
+
+                // Particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update(dt);
+                    if (this.particles[i].life <= 0) this.particles.splice(i, 1);
+                }
+
+                // Floating Text
+                for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+                    this.floatingTexts[i].update(dt);
+                    if (this.floatingTexts[i].life <= 0) this.floatingTexts.splice(i, 1);
+                }
+            }
+
+            draw() {
+                const ctx = this.ctx;
+                
+                // Clear and draw background
+                ctx.fillStyle = CONFIG.colors.bg;
+                ctx.fillRect(0, 0, this.width, this.height);
+
+                // Draw Halftone Pop Art Pattern
+                ctx.fillStyle = CONFIG.colors.halftone;
+                const dotSize = 3;
+                const spacing = 25;
+                // Add slight parallax to background dots
+                const bgOffset = (this.distanceAcc % spacing); 
+                
+                for (let x = 0; x < this.width; x += spacing) {
+                    for (let y = 0; y < this.height + spacing; y += spacing) {
+                        ctx.beginPath();
+                        ctx.arc(x, y + bgOffset, dotSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                ctx.save();
+                
+                // Apply Screen Shake
+                if (this.screenShake > 0) {
+                    const shakeAmt = (this.screenShake / 300) * 10;
+                    ctx.translate((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt);
+                }
+
+                // Draw Lane Lines
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = CONFIG.colors.outline;
+                ctx.setLineDash([20, 20]);
+                // Shift line dash for moving illusion
+                ctx.lineDashOffset = -this.distanceAcc * 2; 
+
+                const laneW = Math.min(CONFIG.laneWidth, this.width / 3.5);
+                ctx.beginPath();
+                ctx.moveTo(this.centerX - laneW/2, 0);
+                ctx.lineTo(this.centerX - laneW/2, this.height);
+                ctx.moveTo(this.centerX + laneW/2, 0);
+                ctx.lineTo(this.centerX + laneW/2, this.height);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset dash
+
+                // Draw Entities
+                this.entities.forEach(ent => ent.draw(ctx, (lane) => this.getXForLane(lane)));
+
+                // Draw Player
+                if (this.state === 'PLAYING') {
+                    this.player.draw(ctx, (lane) => this.getXForLane(lane), this.playerBaseY);
+                }
+
+                // Draw Particles & Text
+                this.particles.forEach(p => p.draw(ctx));
+                this.floatingTexts.forEach(ft => ft.draw(ctx));
+
+                ctx.restore();
+            }
+
+            loop(timestamp) {
+                let dt = timestamp - this.lastTime;
+                // Cap delta time to prevent massive jumps if tab is inactive
+                if (dt > 100) dt = 16.66;
+                this.lastTime = timestamp;
+
+                this.update(dt);
+                this.draw();
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+        }
+
+        // Initialize Game on Load
+        window.addEventListener('load', () => {
+            new GameEngine();
+        });
+    </script>
+</body>
+</html>
